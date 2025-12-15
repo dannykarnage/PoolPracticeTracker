@@ -6,7 +6,7 @@ include 'db_connect.php';
 
 // Fetch published drills
 // We select both old and new descriptions
-$sql = "SELECT drill_id as id, name as title, description, description_new, pass_fail, score, out_of, out_of_num as maxScore, out_of_pass as passThreshold FROM drills WHERE published = 1";
+$sql = "SELECT drill_id as id, name as title, featured, description, description_new, pass_fail, score, out_of, out_of_num as maxScore, out_of_pass as passThreshold FROM drills WHERE published = 1";
 $result = $conn->query($sql);
 
 $drills = [];
@@ -19,6 +19,12 @@ while($row = $result->fetch_assoc()) {
     } elseif ($row['out_of']) {
         $type = 'score_out_of';
     }
+
+    $featured = false;
+    if ($row['featured']) {
+        $featured = true;
+    }
+
     
     // Description Logic: Use new column if available, otherwise strip tags from old column
     $desc = $row['description_new'];
@@ -31,6 +37,7 @@ while($row = $result->fetch_assoc()) {
         'id' => intval($row['id']),
         'title' => $row['title'],
         'description' => $desc,
+        'featured' => $featured,
         'type' => $type,
         'maxScore' => $row['maxScore'] ? intval($row['maxScore']) : null,
         'passThreshold' => $row['passThreshold'] ? intval($row['passThreshold']) : null,

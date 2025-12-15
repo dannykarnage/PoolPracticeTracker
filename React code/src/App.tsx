@@ -21,7 +21,7 @@ import {
 /**
  * POOL PRACTICE TRACKER + SHOT CLOCK
  * Version: React Router Enabled
- * Updated: Shot Clock Selection UI & Cleaned Imports
+ * Updated: Featured Drills Logic
  */
 
 // --- Constants ---
@@ -40,6 +40,7 @@ interface Drill {
   maxScore?: number;
   passThreshold?: number;
   diagramUrl?: string;
+  featured?: boolean; // Added featured property
 }
 
 interface DrillLog {
@@ -57,9 +58,11 @@ interface UserSession {
 
 // --- Mock Data (Fallback) ---
 const MOCK_DRILLS: Drill[] = [
-  { id: 1, title: "Stop Shot Drill (Demo)", type: 'pass_fail', description: "Shoot object ball into corner, stop cue ball dead. Repeat 10 times. Must stop dead to count.", diagramUrl: "" },
-  { id: 2, title: "L-Drill (Demo)", type: 'score_out_of', maxScore: 10, description: "Run balls in L-shape without hitting rails.", diagramUrl: "" },
-  { id: 3, title: "Long Potting (Demo)", type: 'score', description: "Pot object ball into corner from distance. High score wins.", diagramUrl: "" }
+  { id: 1, title: "Stop Shot Drill (Demo)", type: 'pass_fail', description: "Shoot object ball into corner, stop cue ball dead. Repeat 10 times. Must stop dead to count.", diagramUrl: "", featured: true },
+  { id: 2, title: "L-Drill (Demo)", type: 'score_out_of', maxScore: 10, description: "Run balls in L-shape without hitting rails.", diagramUrl: "", featured: true },
+  { id: 3, title: "Long Potting (Demo)", type: 'score', description: "Pot object ball into corner from distance. High score wins.", diagramUrl: "", featured: true },
+  { id: 4, title: "Wagon Wheel (Demo)", type: 'score', description: "Pot object ball and land cue ball in target zone.", diagramUrl: "", featured: true }
+
 ];
 
 // --- Audio Engine (Shot Clock) ---
@@ -183,7 +186,7 @@ const ShotClock = () => {
     if (isActive && shotTimeLeft > 0) {
       shotTimerRef.current = window.setInterval(() => {
         setShotTimeLeft((prev) => {
-          const newVal = prev - 1;
+          const newVal = prev - 0.1;
           const currentInt = Math.ceil(newVal);
           const prevInt = Math.ceil(prev);
           if (currentInt !== prevInt) {
@@ -198,7 +201,7 @@ const ShotClock = () => {
           }
           return newVal;
         });
-      }, 1000);
+      }, 100);
     } else {
       if (shotTimerRef.current) clearInterval(shotTimerRef.current);
     }
@@ -359,7 +362,7 @@ const ShotClock = () => {
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 p-4 animate-in zoom-in-50 duration-300">
         <div className="text-center mb-10 space-y-2">
            <h1 className="text-4xl font-black italic tracking-tighter uppercase text-white drop-shadow-md">Pool Clocks</h1>
-           <h2 className="text-lg font-bold italic text-emerald-500 tracking-tight">by PoolPracticeTracker.com</h2>
+           <Link to="/" className="text-lg font-bold italic text-emerald-500 tracking-tight hover:text-emerald-400 hover:underline transition-colors">by PoolPracticeTracker.com</Link>
         </div>
         
         <h2 className="text-xl font-bold text-slate-500 uppercase tracking-widest mb-6">Select Mode</h2>
@@ -480,6 +483,21 @@ const ShotClock = () => {
 };
 
 // --- APP PAGES & COMPONENTS ---
+
+// Title Updater Component
+const TitleUpdater = () => {
+  const location = useLocation();
+  
+  useEffect(() => {
+    if (location.pathname.startsWith('/shot-clock')) {
+      document.title = 'Shot Clock by PoolPracticeTracker.com';
+    } else {
+      document.title = 'Pool Practice Tracker';
+    }
+  }, [location]);
+
+  return null;
+};
 
 const Header = ({ isMenuOpen, setIsMenuOpen, user, onLogout }: any) => {
   const navigate = useNavigate();
@@ -682,6 +700,7 @@ const LoginForm = ({ onLogin }: { onLogin: (user: UserSession) => void }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate(); // Hook for navigation
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -690,13 +709,17 @@ const LoginForm = ({ onLogin }: { onLogin: (user: UserSession) => void }) => {
     try {
       const res = await fetch(`${API_BASE}/login.php`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
       const data = await res.json();
-      if (data.success) { onLogin(data.user); } else { setError(data.message || 'Login failed'); }
+      if (data.success) { 
+        onLogin(data.user);
+        navigate('/'); // Redirect to home page on success
+      } else { 
+        setError(data.message || 'Login failed'); 
+      }
     } catch (err) { 
         console.error(err);
         // Fallback for preview/demo
-        // If fetch fails, we assume it's just CORS/Network in preview, so log the user in as "Demo User"
-        // In production this wouldn't happen if API is up.
         onLogin({ id: 999, username: username || "Demo User" });
+        navigate('/'); // Also redirect on fallback success
     } finally { setLoading(false); }
   };
 
@@ -717,12 +740,36 @@ const LoginForm = ({ onLogin }: { onLogin: (user: UserSession) => void }) => {
 
 const HomePage = ({ drills }: { drills: Drill[] }) => {
   const navigate = useNavigate();
+
+  // Filter and randomize featured drills
+  const featuredDrills = useMemo(() => {
+    // 1. Get all featured drills from the list
+    const featured = drills.filter(drill => drill.featured);
+    
+    // 2. If there are 3 or fewer, just return them
+    if (featured.length <= 3) return featured;
+
+    // 3. If there are more than 3, randomly pick 3
+    const shuffled = [...featured].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, 3);
+  }, [drills]);
+
   return (
     <div className="animate-in fade-in duration-500">
       <Hero onStart={() => navigate('/drills')} />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="col-span-full mb-4 flex items-center justify-between"><h2 className="text-2xl font-bold text-white">Recent Drills</h2><button onClick={() => navigate('/drills')} className="text-emerald-400 text-sm font-bold hover:underline">View All</button></div>
-        {drills.slice(0, 3).map(drill => <DrillCard key={drill.id} drill={drill} onClick={() => navigate(`/drills/${drill.id}`)} />)}
+        <div className="col-span-full mb-4 flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-white">Featured Drills</h2>
+          <button onClick={() => navigate('/drills')} className="text-emerald-400 text-sm font-bold hover:underline">View All</button>
+        </div>
+        {/* Render the 3 featured/random drills */}
+        {featuredDrills.length > 0 ? (
+          featuredDrills.map(drill => (
+            <DrillCard key={drill.id} drill={drill} onClick={() => navigate(`/drills/${drill.id}`)} />
+          ))
+        ) : (
+          <div className="col-span-3 text-slate-500 text-center py-8 italic">No featured drills found.</div>
+        )}
       </div>
     </div>
   );
@@ -804,6 +851,7 @@ export default function App() {
 
   return (
     <Router basename="/new-site">
+      <TitleUpdater />
       <Routes>
         {/* Standalone Shot Clock Page (No Header/Footer) */}
         <Route path="/shot-clock" element={<ShotClock />} />
