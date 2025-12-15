@@ -1,0 +1,15 @@
+# Begin EnforceSSL poolpracticetracker.com
+
+SetEnv DB_HOST localhost
+SetEnv DB_USER u449903691_eooaokt
+SetEnv DB_PASS DKarnag3*ppt
+SetEnv DB_NAME u449903691_eooaokt
+
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteCond %{HTTP_HOST} ^(www.)?poolpracticetracker.com$
+RewriteCond %{HTTPS} !=on
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L]
+</IfModule>
+# End EnforceSSL
+

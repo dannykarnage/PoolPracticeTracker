@@ -1,0 +1,22 @@
+.footer {
+    margin: 40px 20px 0px 20px;
+        height: 300px;
+        display: flex;
+        flex-direction: row;
+}
+
+.footer .left-section {
+    flex: 1;
+    background-color: rgba(42, 71, 71, 0.6);
+}
+
+.footer .right-section {
+    flex: 1.5;
+    background-color: rgba(42, 71, 71, 0.6);
+}
+
+.middle-sections {
+    background-color: rgba(119, 136, 153, 0.6);
+    width: 220px;
+    color: rgb(175, 250, 250);
+}

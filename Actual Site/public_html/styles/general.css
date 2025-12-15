@@ -1,0 +1,99 @@
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    padding: 0;
+    min-width: 745px;
+    background-image: url("/images/background2.jpg");
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+}
+
+.main-section {
+    display: grid;
+    grid-template-columns: 1fr;
+    margin-top: 60px;
+}
+
+.centered-paragraph {
+    text-align: center;
+}
+
+.right-justified-paragraph {
+    text-align: right;
+}
+
+.left-justified-paragraph {
+    text-align: left;
+}
+
+.page-title {
+    text-align: center;
+    font-size: 70px;
+    font-weight: bold;
+    font-style: italic;
+    color: rgb(117, 199, 199);
+}
+
+.page-subtitle {
+    margin-top: 16px;
+    margin-bottom: 24px;
+    text-align: center;
+    font-size: 30px;
+    font-weight: bold;
+    font-style: italic;
+    color: rgb(117, 199, 199);
+}
+
+.three-image-grid {
+    margin-top: 80px;
+    padding-left: 80px;
+    padding-right: 80px;
+    height: 70px;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.three-image-grid-image {
+    border-radius: 6px;
+    width: 300px
+}
+
+.main-page-logo {
+    border-radius: 8px;
+    width: 400px
+}
+
+.centered-youtube-box {
+    margin-top: 70px;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: top;
+}
+
+.text-grid-three-by-one {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 30px;
+}
+
+.text-grid-three-by-one .right-section,
+.text-grid-three-by-one .left-section {
+    width: 300px;
+}
+
+.text-grid-three-by-one .middle-section {
+    font-size: 20px;
+    color: rgb(175, 250, 250);
+    display: flex;
+    flex-direction: row;
+    background-color: rgba(42, 71, 71, 0.6);
+    padding-left: 20px;
+    padding-right: 20px;
+    border-radius: 30px;
+}
+

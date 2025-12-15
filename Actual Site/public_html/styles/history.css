@@ -1,0 +1,90 @@
+
+.history-header {
+    width: 80%;
+    margin: 30px auto 0px;
+    color: black;
+    background: rgb(117, 199, 199);
+    text-align: center;
+    border: 1px solid rgb(117, 199, 199);
+    border-bottom: none;
+    border-radius: 10px 10px 0px 0px;
+    padding: 0px 20px 0px 20px;
+}
+
+.history-data-display {
+    width: 80%;
+    margin: 0px auto;
+    padding: 20px;
+    border: 1px solid rgb(117, 199, 199);
+    background: white;
+    border-radius: 0px 0px 10px 10px;
+    display: grid;
+}
+
+.history-data-separator-two-column {
+    display: grid;
+    grid-template-columns: 140px, 1fr;
+    grid-template-areas: 
+        "a b";
+}
+
+.history-data-separator-three-column {
+    display: grid;
+    grid-template-columns: 140px, 1fr;
+    grid-template-areas: 
+        "a b";
+}
+
+.two-column-table-container {
+    width: 140px;
+    grid-area: a;
+}
+
+.three-column-table-container {
+    width: 190px;
+}
+
+.chart-container {
+    grid-area: b;
+}
+
+.date-column-header {
+    width: 90px;
+    font-weight: bold;
+    background-color: rgb(117, 199, 199);
+}
+
+.data-column-header {
+    width: 50px;
+    font-weight: bold;
+    background-color: rgb(117, 199, 199);
+}
+
+.date-column-odd {
+    width: 90px;
+    font-weight: normal;
+    font-size: 15px;
+    background-color: rgb(184, 232, 232);
+}
+
+.data-column-odd {
+    width: 50px;
+    font-weight: normal;
+    font-size: 15px;
+    background-color: rgb(184, 232, 232);
+}
+
+.date-column-even {
+    width: 90px;
+    font-weight: normal;
+    font-size: 15px;
+    background-color: rgb(117, 199, 199);
+}
+
+.data-column-even {
+    width: 50px;
+    font-weight: normal;
+    font-size: 15px;
+    background-color: rgb(117, 199, 199);
+}
+

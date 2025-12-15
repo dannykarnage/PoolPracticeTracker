@@ -1,0 +1,79 @@
+.header {
+    height: 50px;
+    display: flex;
+    justify-content: space-between;
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 0;
+    z-index: 500;
+    background-color: rgb(74, 74, 74);
+    min-width: 745px;
+}
+
+.header a:visited,
+.header a:active,
+.header a:link,
+.header a:hover {
+    text-decoration: none;
+    color: inherit;
+}
+
+.header .left-section {
+    padding: 4px;
+    display: flex;
+    align-items: center;
+}
+
+.header .header-logo {
+    height: 42px;
+}
+
+.header .middle-section {
+    flex: 1;
+    max-width: 500px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: bold;
+    color: rgb(117, 199, 199);
+}
+
+.header .middle-section .menu-item {
+    padding: 14px;
+    margin-right: 6px;
+    margin-left: 6px;;
+    cursor: pointer;
+}
+
+.header .menu-item:hover {
+    background-color: rgb(163, 162, 162);
+    color: aqua;
+}
+
+.header .right-section {
+    width: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    padding-right: 20px;
+}
+
+.youtube-icon {
+    height: 30px;
+    padding-top: 4px;
+    margin-right: 10px;
+    padding-left: 12px;
+}
+
+.facebook-icon {
+    height: 40px;
+    margin-right: 8px;
+}
+
+.patreon-icon {
+    height: 26px;
+    margin-right: 10px;
+}
