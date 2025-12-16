@@ -185,7 +185,7 @@ const ShotClock = () => {
     if (isActive && shotTimeLeft > 0) {
       shotTimerRef.current = window.setInterval(() => {
         setShotTimeLeft((prev) => {
-          const newVal = prev - 0.1;
+          const newVal = prev - 1;
           const currentInt = Math.ceil(newVal);
           const prevInt = Math.ceil(prev);
           if (currentInt !== prevInt) {
@@ -200,7 +200,7 @@ const ShotClock = () => {
           }
           return newVal;
         });
-      }, 100);
+      }, 1000);
     } else {
       if (shotTimerRef.current) clearInterval(shotTimerRef.current);
     }
