@@ -6,12 +6,13 @@ import {
   Link, 
   useLocation,
   useNavigate,
-  useParams
+  useParams,
+  useSearchParams
 } from 'react-router-dom';
 import { 
   Menu, X, User, LogIn, LogOut, Play, Pause, CheckCircle, 
   XCircle, ChevronRight, BarChart2, History, Trophy, Clock,
-  RotateCcw, RefreshCw, Settings, Mic, MicOff, HelpCircle
+  RotateCcw, RefreshCw, Settings, Mic, MicOff, HelpCircle, UserPlus, Key
 } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, 
@@ -21,7 +22,7 @@ import {
 /**
  * POOL PRACTICE TRACKER + SHOT CLOCK
  * Version: React Router Enabled
- * Updated: Featured Drills Logic
+ * Updated: Password Reset Flow
  */
 
 // --- Constants ---
@@ -40,7 +41,7 @@ interface Drill {
   maxScore?: number;
   passThreshold?: number;
   diagramUrl?: string;
-  featured?: boolean; // Added featured property
+  featured?: boolean;
 }
 
 interface DrillLog {
@@ -60,9 +61,7 @@ interface UserSession {
 const MOCK_DRILLS: Drill[] = [
   { id: 1, title: "Stop Shot Drill (Demo)", type: 'pass_fail', description: "Shoot object ball into corner, stop cue ball dead. Repeat 10 times. Must stop dead to count.", diagramUrl: "", featured: true },
   { id: 2, title: "L-Drill (Demo)", type: 'score_out_of', maxScore: 10, description: "Run balls in L-shape without hitting rails.", diagramUrl: "", featured: true },
-  { id: 3, title: "Long Potting (Demo)", type: 'score', description: "Pot object ball into corner from distance. High score wins.", diagramUrl: "", featured: true },
-  { id: 4, title: "Wagon Wheel (Demo)", type: 'score', description: "Pot object ball and land cue ball in target zone.", diagramUrl: "", featured: true }
-
+  { id: 3, title: "Long Potting (Demo)", type: 'score', description: "Pot object ball into corner from distance. High score wins.", diagramUrl: "", featured: true }
 ];
 
 // --- Audio Engine (Shot Clock) ---
@@ -483,19 +482,12 @@ const ShotClock = () => {
 };
 
 // --- APP PAGES & COMPONENTS ---
-
-// Title Updater Component
 const TitleUpdater = () => {
   const location = useLocation();
-  
   useEffect(() => {
-    if (location.pathname.startsWith('/shot-clock')) {
-      document.title = 'Shot Clock by PoolPracticeTracker.com';
-    } else {
-      document.title = 'Pool Practice Tracker';
-    }
+    if (location.pathname.startsWith('/shot-clock')) { document.title = 'Shot Clock by PoolPracticeTracker.com'; } 
+    else { document.title = 'Pool Practice Tracker'; }
   }, [location]);
-
   return null;
 };
 
@@ -503,7 +495,6 @@ const Header = ({ isMenuOpen, setIsMenuOpen, user, onLogout }: any) => {
   const navigate = useNavigate();
   const location = useLocation();
   const path = location.pathname;
-
   const isActive = (p: string) => path === p;
 
   return (
@@ -518,7 +509,6 @@ const Header = ({ isMenuOpen, setIsMenuOpen, user, onLogout }: any) => {
           <button onClick={() => navigate('/drills')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all duration-200 flex items-center gap-2 ${isActive('/drills') ? 'bg-slate-800 text-emerald-400' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>Drills</button>
           <button onClick={() => navigate('/shot-clock')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all duration-200 flex items-center gap-2 border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-600/20`}>Shot Clock</button>
           {user && <button onClick={() => navigate('/profile')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all duration-200 flex items-center gap-2 ${isActive('/profile') ? 'bg-slate-800 text-emerald-400' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><BarChart2 size={16} /> My Progress</button>}
-          
           <div className="w-px h-6 bg-slate-700 mx-2" />
           {user ? (
             <div className="flex items-center gap-3 pl-2">
@@ -599,10 +589,7 @@ const DrillDetail = ({ drill, onBack, onLog, user }: { drill: Drill, onBack: () 
       } else { alert("Error logging score: " + result.message); }
     } catch (err) { 
         console.error(err); 
-        // Fallback for preview demo (since we can't hit real API)
-        alert("Network error logging to real DB (Expected in preview). Logging locally for demo.");
-        onLog({ id: Date.now().toString(), drillId: drill.id, date: new Date().toISOString(), score: score ? parseInt(score) : undefined, passed });
-        onBack();
+        alert("Network error. Please try again."); 
     } finally { setSubmitting(false); }
   };
 
@@ -695,12 +682,175 @@ const ProfileChart = ({ logs, drills, user }: { logs: DrillLog[], drills: Drill[
   );
 };
 
+const ForgotPasswordForm = () => {
+  const [username, setUsername] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+    setError('');
+
+    try {
+      const res = await fetch(`${API_BASE}/request_reset.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        setMessage(data.message || 'If that username exists, an email has been sent.');
+      } else {
+        setError(data.message || 'Request failed.');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Network error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-center h-[60vh]">
+      <div className="w-full max-w-md bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl">
+        <h2 className="text-2xl font-bold text-white mb-6 text-center">Reset Password</h2>
+        {message && <div className="bg-emerald-500/20 text-emerald-400 p-3 rounded mb-4 text-sm text-center border border-emerald-500/50">{message}</div>}
+        {error && <div className="bg-red-500/20 text-red-400 p-3 rounded mb-4 text-sm text-center">{error}</div>}
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-slate-400 text-sm font-bold mb-2">Username</label>
+            <input 
+              type="text" 
+              value={username} 
+              onChange={e => setUsername(e.target.value)} 
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none" 
+              required 
+            />
+          </div>
+          <button type="submit" disabled={loading} className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold transition-colors disabled:opacity-50">
+            {loading ? 'Sending...' : 'Request Reset Link'}
+          </button>
+        </form>
+        <div className="mt-6 text-center text-sm text-slate-400">
+          <Link to="/login" className="text-emerald-400 hover:text-emerald-300 font-bold transition-colors hover:underline">Back to Login</Link>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ResetPasswordForm = () => {
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get('token');
+  const username = searchParams.get('user');
+  
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+    setLoading(true);
+    setError('');
+    setMessage('');
+
+    try {
+      const res = await fetch(`${API_BASE}/reset_password.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, username, new_password: newPassword })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        setMessage('Password reset successful! Redirecting to login...');
+        setTimeout(() => navigate('/login'), 5000);
+      } else {
+        setError(data.message || 'Reset failed.');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Network error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!token || !username) {
+    return <div className="text-center text-red-400 mt-20">Invalid password reset link.</div>;
+  }
+
+  return (
+    <div className="flex items-center justify-center h-[60vh]">
+      <div className="w-full max-w-md bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl">
+        <h2 className="text-2xl font-bold text-white mb-6 text-center flex items-center justify-center gap-2">
+          <Key className="text-emerald-500" /> New Password
+        </h2>
+        
+        {message && <div className="bg-emerald-500/20 text-emerald-400 p-3 rounded mb-4 text-sm text-center border border-emerald-500/50">{message}</div>}
+        {error && <div className="bg-red-500/20 text-red-400 p-3 rounded mb-4 text-sm text-center">{error}</div>}
+        
+        {!message && (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-slate-400 text-sm font-bold mb-2">New Password</label>
+              <input 
+                type="password" 
+                value={newPassword} 
+                onChange={e => setNewPassword(e.target.value)} 
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none" 
+                required minLength={6} 
+              />
+            </div>
+            <div>
+              <label className="block text-slate-400 text-sm font-bold mb-2">Confirm Password</label>
+              <input 
+                type="password" 
+                value={confirmPassword} 
+                onChange={e => setConfirmPassword(e.target.value)} 
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none" 
+                required minLength={6} 
+              />
+            </div>
+            <button type="submit" disabled={loading} className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold transition-colors disabled:opacity-50">
+              {loading ? 'Resetting...' : 'Set New Password'}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const LoginForm = ({ onLogin }: { onLogin: (user: UserSession) => void }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate(); // Hook for navigation
+  const location = useLocation(); // To check for query params
+  const [message, setMessage] = useState(''); // Success message state
+
+  // Check for verified query param on load
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('verified') === 'true') {
+      setMessage('Email verified successfully! Please login.');
+    }
+  }, [location]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -724,15 +874,87 @@ const LoginForm = ({ onLogin }: { onLogin: (user: UserSession) => void }) => {
   };
 
   return (
-    <div className="flex items-center justify-center h-[60vh]">
+    <div className="flex items-center justify-center h-[70vh]">
       <div className="w-full max-w-md bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl">
         <h2 className="text-2xl font-bold text-white mb-6 text-center">Welcome Back</h2>
+        
+        {/* Success Message */}
+        {message && <div className="bg-emerald-500/20 text-emerald-400 p-3 rounded mb-4 text-sm text-center font-bold border border-emerald-500/50">{message}</div>}
+        
         {error && <div className="bg-red-500/20 text-red-400 p-3 rounded mb-4 text-sm">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div><label className="block text-slate-400 text-sm font-bold mb-2">Username</label><input type="text" value={username} onChange={e => setUsername(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none" /></div>
           <div><label className="block text-slate-400 text-sm font-bold mb-2">Password</label><input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none" /></div>
           <button type="submit" disabled={loading} className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold transition-colors disabled:opacity-50">{loading ? 'Logging in...' : 'Login'}</button>
         </form>
+        <div className="mt-6 text-center text-sm text-slate-400 space-y-2">
+          <div>
+            New here?{' '}
+            <Link to="/register" className="text-emerald-400 hover:text-emerald-300 font-bold transition-colors hover:underline">Register now!</Link>
+          </div>
+          <div>
+            Having Trouble?{' '}
+            <Link to="/forgot-password" className="text-emerald-400 hover:text-emerald-300 font-bold transition-colors hover:underline">Click here.</Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const RegisterForm = () => {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch(`${API_BASE}/register.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, email, password })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        // Show alert and redirect to login, or handle message state
+        alert(data.message || "Registration successful! Please check your email.");
+        navigate('/login');
+      } else {
+        setError(data.message || 'Registration failed');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Network error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-center h-[70vh]">
+      <div className="w-full max-w-md bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl">
+        <h2 className="text-2xl font-bold text-white mb-6 text-center flex items-center justify-center gap-2">
+          <UserPlus className="text-emerald-500" /> Create Account
+        </h2>
+        {error && <div className="bg-red-500/20 text-red-400 p-3 rounded mb-4 text-sm">{error}</div>}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div><label className="block text-slate-400 text-sm font-bold mb-2">Username</label><input type="text" value={username} onChange={e => setUsername(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none" required minLength={3} /></div>
+          <div><label className="block text-slate-400 text-sm font-bold mb-2">Email</label><input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none" required /></div>
+          <div><label className="block text-slate-400 text-sm font-bold mb-2">Password</label><input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none" required minLength={6} /></div>
+          <button type="submit" disabled={loading} className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold transition-colors disabled:opacity-50">{loading ? 'Creating Account...' : 'Register'}</button>
+        </form>
+        <div className="mt-6 text-center text-sm text-slate-400">
+          Already have an account?{' '}
+          <Link to="/login" className="text-emerald-400 hover:text-emerald-300 font-bold transition-colors hover:underline">Login here</Link>
+        </div>
       </div>
     </div>
   );
@@ -740,16 +962,11 @@ const LoginForm = ({ onLogin }: { onLogin: (user: UserSession) => void }) => {
 
 const HomePage = ({ drills }: { drills: Drill[] }) => {
   const navigate = useNavigate();
-
   // Filter and randomize featured drills
   const featuredDrills = useMemo(() => {
-    // 1. Get all featured drills from the list
     const featured = drills.filter(drill => drill.featured);
-    
-    // 2. If there are 3 or fewer, just return them
     if (featured.length <= 3) return featured;
-
-    // 3. If there are more than 3, randomly pick 3
+    // Shuffle and pick 3
     const shuffled = [...featured].sort(() => 0.5 - Math.random());
     return shuffled.slice(0, 3);
   }, [drills]);
@@ -758,11 +975,7 @@ const HomePage = ({ drills }: { drills: Drill[] }) => {
     <div className="animate-in fade-in duration-500">
       <Hero onStart={() => navigate('/drills')} />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="col-span-full mb-4 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-white">Featured Drills</h2>
-          <button onClick={() => navigate('/drills')} className="text-emerald-400 text-sm font-bold hover:underline">View All</button>
-        </div>
-        {/* Render the 3 featured/random drills */}
+        <div className="col-span-full mb-4 flex items-center justify-between"><h2 className="text-2xl font-bold text-white">Featured Drills</h2><button onClick={() => navigate('/drills')} className="text-emerald-400 text-sm font-bold hover:underline">View All</button></div>
         {featuredDrills.length > 0 ? (
           featuredDrills.map(drill => (
             <DrillCard key={drill.id} drill={drill} onClick={() => navigate(`/drills/${drill.id}`)} />
@@ -869,6 +1082,9 @@ export default function App() {
         
         <Route path="/profile" element={<Layout user={user} onLogout={() => setUser(null)}><ProfilePage logs={logs} drills={drills} user={user} /></Layout>} />
         <Route path="/login" element={<Layout user={user} onLogout={() => setUser(null)}><LoginForm onLogin={(u) => setUser(u)} /></Layout>} />
+        <Route path="/register" element={<Layout user={user} onLogout={() => setUser(null)}><RegisterForm /></Layout>} />
+        <Route path="/forgot-password" element={<Layout user={user} onLogout={() => setUser(null)}><ForgotPasswordForm /></Layout>} />
+        <Route path="/reset-password" element={<Layout user={user} onLogout={() => setUser(null)}><ResetPasswordForm /></Layout>} />
       </Routes>
     </Router>
   );
