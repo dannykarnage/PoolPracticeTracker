@@ -12,7 +12,7 @@ import {
 import { 
   Menu, X, User, LogIn, LogOut, Play, Pause, CheckCircle, 
   XCircle, ChevronRight, BarChart2, History, Trophy, Clock,
-  RotateCcw, RefreshCw, Settings, Mic, MicOff, HelpCircle, UserPlus, Key, Mail, Shield
+  RotateCcw, RefreshCw, Settings, Mic, MicOff, HelpCircle, UserPlus, Key, Mail, Shield, AlertCircle
 } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, 
@@ -22,7 +22,7 @@ import {
 /**
  * POOL PRACTICE TRACKER + SHOT CLOCK
  * Version: React Router Enabled
- * Updated: Account Management Page (Fixed Types)
+ * Updated: Replaced alerts with UI messages, added 404 handling
  */
 
 // --- Constants ---
@@ -399,14 +399,14 @@ const ShotClock = () => {
               </div>
             )}
             {gameType === 'ultimate' && (
-               <div className="space-y-4 border-b border-slate-700 pb-4">
+                <div className="space-y-4 border-b border-slate-700 pb-4">
                   <h3 className="text-sky-400 text-xs font-bold uppercase tracking-wider">Match Settings</h3>
                   <NumberSelect label="Match Time" value={matchDurationMins} min={10} max={60} step={5} onChange={setMatchDurationMins} suffix="m" />
                   <div className="bg-slate-900 p-3 rounded-lg space-y-3 border border-slate-700">
                     <div className="flex items-center justify-between"><label className="text-white text-sm font-bold">Fast Clock</label><input type="checkbox" checked={fastClockEnabled} onChange={(e) => setFastClockEnabled(e.target.checked)} className="w-5 h-5 accent-sky-500 cursor-pointer" /></div>
                     {fastClockEnabled && (<div className="space-y-3 pt-2"><NumberSelect label="Trigger (Mins Remaining)" value={fastClockTriggerMins} min={3} max={20} step={1} onChange={setFastClockTriggerMins} suffix="m" /><NumberSelect label="Fast Shot Time" value={fastShotTime} min={10} max={30} step={5} onChange={setFastShotTime} /></div>)}
                   </div>
-               </div>
+                </div>
             )}
             <h3 className={`${gameType === 'ultimate' ? 'text-sky-400' : 'text-emerald-400'} text-xs font-bold uppercase tracking-wider`}>Shot Settings</h3>
             <NumberSelect label="Shot Time" value={shotTime} min={15} max={60} step={5} onChange={setShotTime} />
@@ -582,22 +582,33 @@ const DrillDetail = ({ drill, onBack, onLog, user }: { drill: Drill, onBack: () 
   const [score, setScore] = useState<string>('');
   const [passed, setPassed] = useState<boolean | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<{type:'success'|'error'|'', msg:string}>({ type: '', msg: '' });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) { alert("Please login to save results."); return; }
+    if (!user) { 
+        setFeedback({ type: 'error', msg: "Please login to save results." }); 
+        return; 
+    }
     setSubmitting(true);
+    setFeedback({ type: '', msg: '' });
+    
     try {
       const response = await fetch(`${API_BASE}/log_score.php`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: user.id, drillId: drill.id, score: score ? parseInt(score) : undefined, passed: passed }) });
       const result = await response.json();
       if (result.success) {
         onLog({ id: result.id, drillId: drill.id, date: new Date().toISOString(), score: score ? parseInt(score) : undefined, passed });
-        alert("Score Logged Successfully!");
-        onBack();
-      } else { alert("Error logging score: " + result.message); }
+        setFeedback({ type: 'success', msg: "Score Logged Successfully!" });
+        // Delay navigation so user sees success message
+        setTimeout(() => {
+             onBack();
+        }, 1500);
+      } else { 
+          setFeedback({ type: 'error', msg: "Error logging score: " + result.message }); 
+      }
     } catch (err) { 
         console.error(err); 
-        alert("Network error. Please try again."); 
+        setFeedback({ type: 'error', msg: "Network error. Please try again." }); 
     } finally { setSubmitting(false); }
   };
 
@@ -635,6 +646,11 @@ const DrillDetail = ({ drill, onBack, onLog, user }: { drill: Drill, onBack: () 
                     <label className="block text-slate-400 text-sm font-bold mb-2">Enter Score {drill.maxScore ? `(out of ${drill.maxScore})` : ''}</label>
                     <input type="number" value={score} onChange={(e) => setScore(e.target.value)} className="w-full bg-slate-900 border-2 border-slate-700 rounded-xl px-4 py-3 text-white font-mono text-xl focus:border-emerald-500 focus:outline-none transition-colors" placeholder="0" max={drill.maxScore} />
                   </div>
+                )}
+                {feedback.msg && (
+                    <div className={`p-3 rounded text-sm text-center border ${feedback.type === 'success' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' : 'bg-red-500/20 text-red-400 border-red-500/50'}`}>
+                        {feedback.msg}
+                    </div>
                 )}
                 <button type="submit" disabled={submitting || (drill.type === 'pass_fail' && passed === null) || ((drill.type === 'score' || drill.type === 'score_out_of') && score === '')} className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-lg shadow-lg transition-all">{submitting ? 'Saving...' : 'Save Result'}</button>
               </form>
@@ -763,12 +779,14 @@ const RegisterForm = () => {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(''); // Added message state
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setMessage('');
 
     try {
       const res = await fetch(`${API_BASE}/register.php`, {
@@ -779,9 +797,9 @@ const RegisterForm = () => {
       const data = await res.json();
       
       if (data.success) {
-        // Show alert and redirect to login, or handle message state
-        alert(data.message || "Registration successful! Please check your email.");
-        navigate('/login');
+        // Show message and redirect
+        setMessage(data.message || "Registration successful! Redirecting to login...");
+        setTimeout(() => navigate('/login'), 2000);
       } else {
         setError(data.message || 'Registration failed');
       }
@@ -799,6 +817,7 @@ const RegisterForm = () => {
         <h2 className="text-2xl font-bold text-white mb-6 text-center flex items-center justify-center gap-2">
           <UserPlus className="text-emerald-500" /> Create Account
         </h2>
+        {message && <div className="bg-emerald-500/20 text-emerald-400 p-3 rounded mb-4 text-sm text-center font-bold border border-emerald-500/50">{message}</div>}
         {error && <div className="bg-red-500/20 text-red-400 p-3 rounded mb-4 text-sm">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div><label className="block text-slate-400 text-sm font-bold mb-2">Username</label><input type="text" value={username} onChange={e => setUsername(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none" required minLength={3} /></div>
@@ -989,9 +1008,9 @@ const ChangeEmailForm = ({ user, onBack }: { user: UserSession | null, onBack: (
     try {
        // Placeholder fetch
        const res = await fetch(`${API_BASE}/change_email.php`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_id: user.id, new_email: newEmail, password })
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ user_id: user.id, new_email: newEmail, password })
        });
        const data = await res.json();
        // Mock response logic
@@ -1047,9 +1066,9 @@ const ChangePasswordAuthenticatedForm = ({ user, onBack }: { user: UserSession |
     try {
       // Placeholder fetch
        const res = await fetch(`${API_BASE}/change_password_authenticated.php`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_id: user.id, current_password: currentPassword, new_password: newPassword })
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ user_id: user.id, current_password: currentPassword, new_password: newPassword })
        });
        const data = await res.json();
        // Mock logic
@@ -1177,6 +1196,15 @@ const DrillsPage = ({ drills }: { drills: Drill[] }) => {
   );
 };
 
+const NoMatch = () => (
+  <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
+    <AlertCircle size={64} className="text-slate-700 mb-4" />
+    <h2 className="text-2xl font-bold text-white mb-2">Page Not Found</h2>
+    <p className="text-slate-400 mb-6">The page you are looking for doesn't exist.</p>
+    <Link to="/" className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold">Go Home</Link>
+  </div>
+);
+
 // Helper to extract ID from router params
 const DrillWrapper = ({ drills, onLog, user }: any) => {
   const { id } = useParams();
@@ -1270,6 +1298,8 @@ export default function App() {
         <Route path="/account/change-email" element={<Layout user={user} onLogout={() => setUser(null)}><ChangeEmailForm user={user} onBack={() => window.history.back()} /></Layout>} />
         <Route path="/account/change-password" element={<Layout user={user} onLogout={() => setUser(null)}><ChangePasswordAuthenticatedForm user={user} onBack={() => window.history.back()} /></Layout>} />
 
+        {/* 404 Fallback - Helps identify if routing is working but path is wrong */}
+        <Route path="*" element={<Layout user={user} onLogout={() => setUser(null)}><NoMatch /></Layout>} />
       </Routes>
     </Router>
   );
