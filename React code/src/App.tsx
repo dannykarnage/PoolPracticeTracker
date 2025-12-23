@@ -12,7 +12,7 @@ import {
 import { 
   Menu, X, User, LogIn, LogOut, Play, Pause, CheckCircle, 
   XCircle, ChevronRight, BarChart2, History, Trophy, Clock,
-  RotateCcw, RefreshCw, Settings, Mic, MicOff, HelpCircle, UserPlus, Key
+  RotateCcw, RefreshCw, Settings, Mic, MicOff, HelpCircle, UserPlus, Key, Mail, Shield
 } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, 
@@ -22,12 +22,12 @@ import {
 /**
  * POOL PRACTICE TRACKER + SHOT CLOCK
  * Version: React Router Enabled
- * Updated: Password Reset Flow
+ * Updated: Account Management Page (Fixed Types)
  */
 
 // --- Constants ---
 const API_BASE = 'https://poolpracticetracker.com/new-site/api';
-const SITE_BASE = 'https://poolpracticetracker.com'; 
+const SITE_BASE = 'https://poolpracticetracker.com/'; 
 
 // --- Types ---
 
@@ -495,6 +495,7 @@ const Header = ({ isMenuOpen, setIsMenuOpen, user, onLogout }: any) => {
   const navigate = useNavigate();
   const location = useLocation();
   const path = location.pathname;
+
   const isActive = (p: string) => path === p;
 
   return (
@@ -509,10 +510,16 @@ const Header = ({ isMenuOpen, setIsMenuOpen, user, onLogout }: any) => {
           <button onClick={() => navigate('/drills')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all duration-200 flex items-center gap-2 ${isActive('/drills') ? 'bg-slate-800 text-emerald-400' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>Drills</button>
           <button onClick={() => navigate('/shot-clock')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all duration-200 flex items-center gap-2 border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-600/20`}>Shot Clock</button>
           {user && <button onClick={() => navigate('/profile')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all duration-200 flex items-center gap-2 ${isActive('/profile') ? 'bg-slate-800 text-emerald-400' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><BarChart2 size={16} /> My Progress</button>}
+          
           <div className="w-px h-6 bg-slate-700 mx-2" />
           {user ? (
             <div className="flex items-center gap-3 pl-2">
-              <span className="text-xs text-slate-400 font-medium">Hi, {user.username}</span>
+              <Link 
+                to="/account" 
+                className="text-xs text-slate-400 font-medium hover:text-emerald-400 transition-colors flex items-center gap-2"
+              >
+                Hi, {user.username}
+              </Link>
               <button onClick={onLogout} className="text-slate-300 hover:text-red-400 transition-colors p-2" title="Logout"><LogOut size={18} /></button>
             </div>
           ) : (
@@ -530,6 +537,7 @@ const Header = ({ isMenuOpen, setIsMenuOpen, user, onLogout }: any) => {
             {user ? (
                <>
                <button onClick={() => { navigate('/profile'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg font-bold text-slate-300 hover:bg-slate-700">My Progress</button>
+               <button onClick={() => { navigate('/account'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg font-bold text-slate-300 hover:bg-slate-700">My Account</button>
                <button onClick={onLogout} className="w-full text-left px-4 py-3 rounded-lg font-bold text-red-400 hover:bg-slate-700">Logout</button>
                </>
             ) : (
@@ -676,6 +684,131 @@ const ProfileChart = ({ logs, drills, user }: { logs: DrillLog[], drills: Drill[
               </LineChart>
             </ResponsiveContainer>
           ) : ( <div className="h-full flex items-center justify-center text-slate-500 italic">No data logged for this drill yet.</div> )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const LoginForm = ({ onLogin }: { onLogin: (user: UserSession) => void }) => {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate(); // Hook for navigation
+  const location = useLocation(); // To check for query params
+  const [message, setMessage] = useState(''); // Success message state
+
+  // Check for verified query param on load
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('verified') === 'true') {
+      setMessage('Email verified successfully! Please login.');
+    }
+  }, [location]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_BASE}/login.php`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
+      const data = await res.json();
+      if (data.success) { 
+        onLogin(data.user);
+        navigate('/'); // Redirect to home page on success
+      } else { 
+        setError(data.message || 'Login failed'); 
+      }
+    } catch (err) { 
+        console.error(err);
+        // Fallback for preview/demo
+        onLogin({ id: 999, username: username || "Demo User" });
+        navigate('/'); // Also redirect on fallback success
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="flex items-center justify-center h-[60vh]">
+      <div className="w-full max-w-md bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl">
+        <h2 className="text-2xl font-bold text-white mb-6 text-center">Welcome Back</h2>
+        
+        {/* Success Message */}
+        {message && <div className="bg-emerald-500/20 text-emerald-400 p-3 rounded mb-4 text-sm text-center font-bold border border-emerald-500/50">{message}</div>}
+        
+        {error && <div className="bg-red-500/20 text-red-400 p-3 rounded mb-4 text-sm">{error}</div>}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div><label className="block text-slate-400 text-sm font-bold mb-2">Username</label><input type="text" value={username} onChange={e => setUsername(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none" /></div>
+          <div><label className="block text-slate-400 text-sm font-bold mb-2">Password</label><input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none" /></div>
+          <button type="submit" disabled={loading} className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold transition-colors disabled:opacity-50">{loading ? 'Logging in...' : 'Login'}</button>
+        </form>
+        <div className="mt-6 text-center text-sm text-slate-400 space-y-2">
+          <div>
+            New here?{' '}
+            <Link to="/register" className="text-emerald-400 hover:text-emerald-300 font-bold transition-colors hover:underline">Register now!</Link>
+          </div>
+          <div>
+            Having Trouble?{' '}
+            <Link to="/forgot-password" className="text-emerald-400 hover:text-emerald-300 font-bold transition-colors hover:underline">Click here.</Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const RegisterForm = () => {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch(`${API_BASE}/register.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, email, password })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        // Show alert and redirect to login, or handle message state
+        alert(data.message || "Registration successful! Please check your email.");
+        navigate('/login');
+      } else {
+        setError(data.message || 'Registration failed');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Network error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-center h-[70vh]">
+      <div className="w-full max-w-md bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl">
+        <h2 className="text-2xl font-bold text-white mb-6 text-center flex items-center justify-center gap-2">
+          <UserPlus className="text-emerald-500" /> Create Account
+        </h2>
+        {error && <div className="bg-red-500/20 text-red-400 p-3 rounded mb-4 text-sm">{error}</div>}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div><label className="block text-slate-400 text-sm font-bold mb-2">Username</label><input type="text" value={username} onChange={e => setUsername(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none" required minLength={3} /></div>
+          <div><label className="block text-slate-400 text-sm font-bold mb-2">Email</label><input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none" required /></div>
+          <div><label className="block text-slate-400 text-sm font-bold mb-2">Password</label><input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none" required minLength={6} /></div>
+          <button type="submit" disabled={loading} className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold transition-colors disabled:opacity-50">{loading ? 'Creating Account...' : 'Register'}</button>
+        </form>
+        <div className="mt-6 text-center text-sm text-slate-400">
+          Already have an account?{' '}
+          <Link to="/login" className="text-emerald-400 hover:text-emerald-300 font-bold transition-colors hover:underline">Login here</Link>
         </div>
       </div>
     </div>
@@ -835,125 +968,171 @@ const ResetPasswordForm = () => {
   );
 };
 
-const LoginForm = ({ onLogin }: { onLogin: (user: UserSession) => void }) => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+// --- New Components for Account Management ---
+
+const ChangeEmailForm = ({ user, onBack }: { user: UserSession | null, onBack: () => void }) => {
+  const [newEmail, setNewEmail] = useState('');
+  const [password, setPassword] = useState(''); // Require password for security
+  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate(); // Hook for navigation
-  const location = useLocation(); // To check for query params
-  const [message, setMessage] = useState(''); // Success message state
-
-  // Check for verified query param on load
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (params.get('verified') === 'true') {
-      setMessage('Email verified successfully! Please login.');
-    }
-  }, [location]);
+  
+  if (!user) return <div className="text-white text-center mt-10">Please login.</div>;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setMessage('');
     setError('');
+
+    // Mock API call - you need to implement api/change_email.php
     try {
-      const res = await fetch(`${API_BASE}/login.php`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
-      const data = await res.json();
-      if (data.success) { 
-        onLogin(data.user);
-        navigate('/'); // Redirect to home page on success
-      } else { 
-        setError(data.message || 'Login failed'); 
+       // Placeholder fetch
+       const res = await fetch(`${API_BASE}/change_email.php`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: user.id, new_email: newEmail, password })
+       });
+       const data = await res.json();
+       // Mock response logic
+       
+      if (data.success) {
+          setMessage('Email updated successfully');
+      } else {
+          setError(data.message || 'Update failed');
       }
-    } catch (err) { 
-        console.error(err);
-        // Fallback for preview/demo
-        onLogin({ id: 999, username: username || "Demo User" });
-        navigate('/'); // Also redirect on fallback success
-    } finally { setLoading(false); }
+      setLoading(false);
+       
+    } catch(err) {
+       setError('Network error');
+       setLoading(false);
+    }
   };
 
   return (
-    <div className="flex items-center justify-center h-[70vh]">
-      <div className="w-full max-w-md bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl">
-        <h2 className="text-2xl font-bold text-white mb-6 text-center">Welcome Back</h2>
-        
-        {/* Success Message */}
-        {message && <div className="bg-emerald-500/20 text-emerald-400 p-3 rounded mb-4 text-sm text-center font-bold border border-emerald-500/50">{message}</div>}
-        
+    <div className="max-w-md mx-auto">
+      <button onClick={onBack} className="mb-4 text-slate-400 hover:text-white flex items-center gap-1">← Back to Account</button>
+      <div className="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl">
+        <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2"><Mail className="text-emerald-500" /> Change Email</h2>
+        {message && <div className="bg-emerald-500/20 text-emerald-400 p-3 rounded mb-4 text-sm">{message}</div>}
         {error && <div className="bg-red-500/20 text-red-400 p-3 rounded mb-4 text-sm">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div><label className="block text-slate-400 text-sm font-bold mb-2">Username</label><input type="text" value={username} onChange={e => setUsername(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none" /></div>
-          <div><label className="block text-slate-400 text-sm font-bold mb-2">Password</label><input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none" /></div>
-          <button type="submit" disabled={loading} className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold transition-colors disabled:opacity-50">{loading ? 'Logging in...' : 'Login'}</button>
+          <div><label className="block text-slate-400 text-sm font-bold mb-2">New Email</label><input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none" required /></div>
+          <div><label className="block text-slate-400 text-sm font-bold mb-2">Current Password</label><input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none" required /></div>
+          <button type="submit" disabled={loading} className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold transition-colors disabled:opacity-50">{loading ? 'Updating...' : 'Update Email'}</button>
         </form>
-        <div className="mt-6 text-center text-sm text-slate-400 space-y-2">
-          <div>
-            New here?{' '}
-            <Link to="/register" className="text-emerald-400 hover:text-emerald-300 font-bold transition-colors hover:underline">Register now!</Link>
-          </div>
-          <div>
-            Having Trouble?{' '}
-            <Link to="/forgot-password" className="text-emerald-400 hover:text-emerald-300 font-bold transition-colors hover:underline">Click here.</Link>
-          </div>
-        </div>
       </div>
     </div>
   );
 };
 
-const RegisterForm = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [email, setEmail] = useState('');
+const ChangePasswordAuthenticatedForm = ({ user, onBack }: { user: UserSession | null, onBack: () => void }) => {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+  
+  if (!user) return <div className="text-white text-center mt-10">Please login.</div>;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (newPassword !== confirmPassword) { setError("New passwords do not match"); return; }
     setLoading(true);
+    setMessage('');
     setError('');
 
+    // Mock API call - implement api/change_password_authenticated.php
     try {
-      const res = await fetch(`${API_BASE}/register.php`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, email, password })
-      });
-      const data = await res.json();
-      
+      // Placeholder fetch
+       const res = await fetch(`${API_BASE}/change_password_authenticated.php`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: user.id, current_password: currentPassword, new_password: newPassword })
+       });
+       const data = await res.json();
+       // Mock logic
+       
       if (data.success) {
-        // Show alert and redirect to login, or handle message state
-        alert(data.message || "Registration successful! Please check your email.");
-        navigate('/login');
+          setMessage('Password updated successfully');
       } else {
-        setError(data.message || 'Registration failed');
+          setError(data.message || 'Update failed');
       }
-    } catch (err) {
-      console.error(err);
-      setError('Network error');
-    } finally {
       setLoading(false);
+       
+    } catch(err) {
+       setError('Network error');
+       setLoading(false);
     }
   };
 
   return (
-    <div className="flex items-center justify-center h-[70vh]">
-      <div className="w-full max-w-md bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl">
-        <h2 className="text-2xl font-bold text-white mb-6 text-center flex items-center justify-center gap-2">
-          <UserPlus className="text-emerald-500" /> Create Account
-        </h2>
+    <div className="max-w-md mx-auto">
+      <button onClick={onBack} className="mb-4 text-slate-400 hover:text-white flex items-center gap-1">← Back to Account</button>
+      <div className="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl">
+        <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2"><Key className="text-emerald-500" /> Change Password</h2>
+        {message && <div className="bg-emerald-500/20 text-emerald-400 p-3 rounded mb-4 text-sm">{message}</div>}
         {error && <div className="bg-red-500/20 text-red-400 p-3 rounded mb-4 text-sm">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div><label className="block text-slate-400 text-sm font-bold mb-2">Username</label><input type="text" value={username} onChange={e => setUsername(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none" required minLength={3} /></div>
-          <div><label className="block text-slate-400 text-sm font-bold mb-2">Email</label><input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none" required /></div>
-          <div><label className="block text-slate-400 text-sm font-bold mb-2">Password</label><input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none" required minLength={6} /></div>
-          <button type="submit" disabled={loading} className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold transition-colors disabled:opacity-50">{loading ? 'Creating Account...' : 'Register'}</button>
+          <div><label className="block text-slate-400 text-sm font-bold mb-2">Current Password</label><input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none" required /></div>
+          <div><label className="block text-slate-400 text-sm font-bold mb-2">New Password</label><input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none" required minLength={6} /></div>
+          <div><label className="block text-slate-400 text-sm font-bold mb-2">Confirm New Password</label><input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none" required minLength={6} /></div>
+          <button type="submit" disabled={loading} className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold transition-colors disabled:opacity-50">{loading ? 'Updating...' : 'Update Password'}</button>
         </form>
-        <div className="mt-6 text-center text-sm text-slate-400">
-          Already have an account?{' '}
-          <Link to="/login" className="text-emerald-400 hover:text-emerald-300 font-bold transition-colors hover:underline">Login here</Link>
+      </div>
+    </div>
+  );
+};
+
+const AccountPage = ({ user, onLogout }: { user: UserSession | null, onLogout: () => void }) => {
+  const navigate = useNavigate();
+  if (!user) return <div className="text-white text-center mt-20">Please Login</div>;
+
+  return (
+    <div className="max-w-lg mx-auto animate-in fade-in duration-300">
+      <h1 className="text-3xl font-black text-white mb-8 text-center">My Account</h1>
+      
+      <div className="bg-slate-800 rounded-2xl border border-slate-700 p-8 shadow-xl space-y-6">
+        <div className="flex items-center gap-4 border-b border-slate-700 pb-6 mb-6">
+          <div className="w-16 h-16 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-2xl border-2 border-indigo-400">
+            {user.username.substring(0, 2).toUpperCase()}
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-white">{user.username}</h2>
+            <p className="text-slate-400 text-sm">Account Settings</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <button 
+            onClick={() => navigate('/account/change-email')}
+            className="w-full p-4 bg-slate-700 hover:bg-slate-600 rounded-xl flex items-center justify-between text-white font-bold transition-colors group"
+          >
+            <div className="flex items-center gap-3">
+              <Mail className="text-emerald-400" /> Change Email Address
+            </div>
+            <ChevronRight className="text-slate-500 group-hover:text-white" />
+          </button>
+
+          <button 
+            onClick={() => navigate('/account/change-password')}
+            className="w-full p-4 bg-slate-700 hover:bg-slate-600 rounded-xl flex items-center justify-between text-white font-bold transition-colors group"
+          >
+            <div className="flex items-center gap-3">
+              <Shield className="text-emerald-400" /> Change Password
+            </div>
+            <ChevronRight className="text-slate-500 group-hover:text-white" />
+          </button>
+
+          <div className="pt-4 border-t border-slate-700">
+            <button 
+              onClick={onLogout}
+              className="w-full p-4 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 rounded-xl flex items-center justify-center gap-2 font-bold transition-colors"
+            >
+              <LogOut size={20} /> Logout
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1085,6 +1264,12 @@ export default function App() {
         <Route path="/register" element={<Layout user={user} onLogout={() => setUser(null)}><RegisterForm /></Layout>} />
         <Route path="/forgot-password" element={<Layout user={user} onLogout={() => setUser(null)}><ForgotPasswordForm /></Layout>} />
         <Route path="/reset-password" element={<Layout user={user} onLogout={() => setUser(null)}><ResetPasswordForm /></Layout>} />
+        
+        {/* Account Management Routes */}
+        <Route path="/account" element={<Layout user={user} onLogout={() => setUser(null)}><AccountPage user={user} onLogout={() => setUser(null)} /></Layout>} />
+        <Route path="/account/change-email" element={<Layout user={user} onLogout={() => setUser(null)}><ChangeEmailForm user={user} onBack={() => window.history.back()} /></Layout>} />
+        <Route path="/account/change-password" element={<Layout user={user} onLogout={() => setUser(null)}><ChangePasswordAuthenticatedForm user={user} onBack={() => window.history.back()} /></Layout>} />
+
       </Routes>
     </Router>
   );
