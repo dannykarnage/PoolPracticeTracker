@@ -568,7 +568,13 @@ const DrillCard = ({ drill, onClick }: { drill: Drill, onClick: () => void }) =>
   <div onClick={onClick} className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden hover:border-emerald-500/50 hover:shadow-xl hover:shadow-emerald-900/10 transition-all cursor-pointer group flex flex-col h-full">
     <div className="h-40 bg-slate-900 relative overflow-hidden flex items-center justify-center bg-black">
       {drill.diagramUrl ? <img src={getImageUrl(drill.diagramUrl)} className="w-full h-full object-contain p-2" alt={drill.title} /> : <Trophy size={64} className="text-slate-700" />}
-      <div className="absolute top-3 right-3 bg-slate-900/80 backdrop-blur px-3 py-1 rounded-full text-xs font-bold text-emerald-400 border border-slate-700 uppercase tracking-wider">{drill.type.replace('_', ' ')}</div>
+      <div className="absolute top-3 right-3 bg-slate-900/80 backdrop-blur px-3 py-1 rounded-full text-xs font-bold text-emerald-400 border border-slate-700 uppercase tracking-wider">
+        {drill.type === 'score_out_of' && drill.maxScore 
+          ? `Score out of ${drill.maxScore}` 
+          : drill.type === 'pass_fail' 
+            ? 'PASS/FAIL' 
+            : drill.type.replace('_', ' ')}
+      </div>
     </div>
     <div className="p-5 flex-1 flex flex-col">
       <h3 className="text-xl font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors">{drill.title}</h3>
@@ -665,11 +671,6 @@ const DrillDetail = ({ drill, onBack, onLog, user }: { drill: Drill, onBack: () 
 const ProfileChart = ({ logs, drills, user }: { logs: DrillLog[], drills: Drill[], user: UserSession | null }) => {
   const [selectedDrillId, setSelectedDrillId] = useState<number>(0);
   useEffect(() => { if (drills.length > 0 && selectedDrillId === 0) setSelectedDrillId(drills[0].id); }, [drills, selectedDrillId]);
-/*
-  const chartData = useMemo(() => {
-    return logs.filter(log => log.drillId === selectedDrillId).map(log => ({ date: new Date(log.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), score: log.score, passed: log.passed ? 1 : 0 }));
-  }, [logs, selectedDrillId]);
-*/
   const chartData = useMemo(() => {
     return logs
       .filter(log => log.drillId === selectedDrillId)
@@ -685,7 +686,7 @@ const ProfileChart = ({ logs, drills, user }: { logs: DrillLog[], drills: Drill[
           passed: log.passed ? 1 : 0 
         };
       });
-    }, [logs, selectedDrillId]);
+  }, [logs, selectedDrillId]);
   const currentDrill = drills.find(d => d.id === selectedDrillId);
 
   if (!user) return (
