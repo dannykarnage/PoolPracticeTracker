@@ -330,25 +330,59 @@ const ShotClock = () => {
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-slate-800 w-full max-w-lg rounded-2xl shadow-2xl border border-slate-600 overflow-hidden flex flex-col max-h-[90vh]">
         <div className="bg-slate-900 p-4 border-b border-slate-700 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-white flex items-center gap-2"><HelpCircle size={20} className="text-emerald-500" /> Guide</h3>
+          <h3 className="text-lg font-bold text-white flex items-center gap-2"><HelpCircle size={20} className="text-emerald-500" />Setup Guide</h3>
           <button onClick={() => setShowHelp(false)} className="text-slate-400 hover:text-white transition-colors"> <X size={24} /> </button>
         </div>
         <div className="p-6 overflow-y-auto space-y-4 text-slate-300 text-sm">
           {screen === 'config' ? (
             gameType === 'standard' ? (
               <>
-                <p><strong>Standard Mode:</strong> Classic shot clock.</p>
-                <ul className="list-disc pl-5"><li><strong>Shot Time:</strong> Seconds allowed per shot.</li><li><strong>Grace Period:</strong> Extra time for the first shot after a rack.</li></ul>
+              <div className="space-y-2">
+                  <h4 className="text-white font-bold text-base">Standard Mode</h4>
+                  <p>Classic shot clock for practice or casual matches.</p>
+                </div>
+                <div className="space-y-2">
+                  <h4 className="text-white font-bold text-base">Settings</h4>
+                  <p><strong>2 Players / 1 Player:</strong> Choose 1 Player for solo practice and voice controls.</p>
+                  <p><strong>Shot Time:</strong> Time limit per shot.</p>
+                  <p><strong>Extension Time:</strong>Added time available for one shot.</p>
+                  <p><strong>Grace Period:</strong> Adds extra time to the first shot after a rack/reset.</p>
+                </div>
               </>
             ) : (
               <>
-                <p className="text-sky-400 font-bold">Ultimate Pool Match</p>
-                <p>Timed match + Shot clock.</p>
-                <ul className="list-disc pl-5"><li><strong>Match Time:</strong> Total match duration.</li><li><strong>Fast Clock:</strong> Automatically shortens shot time when match time is low.</li></ul>
+                 <div className="space-y-2">
+                  <h4 className="text-white font-bold text-base text-sky-400">Ultimate Pool Match</h4>
+                  <p>A timed match format where players race against a Match Clock and a Shot Clock simultaneously.</p>
+                </div>
+                <div className="space-y-2">
+                  <h4 className="text-white font-bold text-base">Match Settings</h4>
+                  <p><strong>Match Time:</strong> Total duration of the match (e.g., 20 mins).</p>
+                  <p><strong>Fast Clock:</strong> Automatically reduces the shot time when the match clock gets low.</p>
+                  <p><strong>Trigger Time:</strong> When the Fast Clock activates (e.g., last 10 mins).</p>
+                  <p><strong>Fast Shot Time:</strong> The reduced time limit (e.g., 15s).</p>
+                </div>
               </>
             )
           ) : (
-            <><p className="font-bold text-white">Controls</p><ul className="list-disc pl-5"><li><strong>Start/Pause:</strong> Toggles timer.</li><li><strong>Reset Shot:</strong> Use after every shot.</li><li><strong>Reset Game:</strong> Use after every rack.</li></ul></>
+            // Active Game Help
+            <>
+              <div className="space-y-2">
+                <h4 className="text-white font-bold text-base">Controls</h4>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li><strong>Start/Pause:</strong> Toggles timers.</li>
+                  <li><strong>Reset Shot:</strong> Resets Shot Clock. {gameType === 'ultimate' ? 'Match clock continues running.' : ''}</li>
+                  <li><strong>Reset Game:</strong> End of rack. Resets Shot Clock & extensions. {gameType === 'ultimate' ? 'Pauses Match Clock.' : ''}</li>
+                </ul>
+              </div>
+              {gameType === 'ultimate' && (
+                <div className="bg-sky-900/30 p-4 rounded-xl border border-sky-700/50 space-y-2">
+                   <h4 className="text-white font-bold text-base">Ultimate Rules</h4>
+                   <p><strong>Match Timer:</strong> Runs continuously during play. Only pauses when you hit "Reset Game" (between racks).</p>
+                   <p><strong>Fast Clock:</strong> Will automatically switch your shot clock to {fastShotTime}s on the next shot reset once the match timer passes {fastClockTriggerMins} mins.</p>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -360,7 +394,7 @@ const ShotClock = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 p-4 animate-in zoom-in-50 duration-300">
         <div className="text-center mb-10 space-y-2">
-           <h1 className="text-4xl font-black italic tracking-tighter uppercase text-white drop-shadow-md">Pool Clocks</h1>
+           <h1 className="text-4xl font-black italic tracking-tighter uppercase text-white drop-shadow-md">Shot Clocks</h1>
            <Link to="/" className="text-lg font-bold italic text-emerald-500 tracking-tight hover:text-emerald-400 hover:underline transition-colors">by PoolPracticeTracker.com</Link>
         </div>
         
@@ -388,8 +422,9 @@ const ShotClock = () => {
           <div className={`p-6 text-center relative ${gameType === 'ultimate' ? 'bg-sky-700' : 'bg-emerald-600'}`}>
             <button onClick={() => setScreen('select')} className="absolute top-4 left-4 text-white/70 hover:text-white p-1">← Back</button>
             <button onClick={() => setShowHelp(true)} className="absolute top-4 right-4 text-white/70 hover:text-white p-1"><HelpCircle size={20} /></button>
-            <h1 className="text-2xl font-black italic tracking-tighter uppercase text-white mt-2">{gameType === 'ultimate' ? 'Ultimate Pool Match' : 'Shot Clock'}</h1>
-            <p className="text-white/80 text-xs">Setup</p>
+            <h1 className="text-2xl font-black italic tracking-tighter uppercase text-white mt-2">{gameType === 'ultimate' ? 'Ultimate Pool Match' : 'Classic Shot Clock'}</h1>
+            <h1 className="text-l font-black italic text-white mt-1">by poolpracticetracker.com</h1>
+            <p className="text-white/80 text-xs mt-1">Setup</p>
           </div>
           <div className="p-6 space-y-6 overflow-y-auto">
             {gameType === 'standard' && (
