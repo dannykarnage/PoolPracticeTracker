@@ -665,9 +665,27 @@ const DrillDetail = ({ drill, onBack, onLog, user }: { drill: Drill, onBack: () 
 const ProfileChart = ({ logs, drills, user }: { logs: DrillLog[], drills: Drill[], user: UserSession | null }) => {
   const [selectedDrillId, setSelectedDrillId] = useState<number>(0);
   useEffect(() => { if (drills.length > 0 && selectedDrillId === 0) setSelectedDrillId(drills[0].id); }, [drills, selectedDrillId]);
+/*
   const chartData = useMemo(() => {
     return logs.filter(log => log.drillId === selectedDrillId).map(log => ({ date: new Date(log.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), score: log.score, passed: log.passed ? 1 : 0 }));
   }, [logs, selectedDrillId]);
+*/
+  const chartData = useMemo(() => {
+    return logs
+      .filter(log => log.drillId === selectedDrillId)
+      .map(log => {
+        // Fix SQL timestamp for Safari/iOS by replacing space with T
+        const safeDate = log.date.replace(' ', 'T'); 
+        const dateObj = new Date(safeDate);
+        
+        return { 
+          // Fallback if date parsing still fails
+          date: isNaN(dateObj.getTime()) ? log.date : dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), 
+          score: log.score, 
+          passed: log.passed ? 1 : 0 
+        };
+      });
+    }, [logs, selectedDrillId]);
   const currentDrill = drills.find(d => d.id === selectedDrillId);
 
   if (!user) return (
@@ -1257,7 +1275,9 @@ export default function App() {
 
   useEffect(() => {
     if (user) {
-      fetch(`${API_BASE}/get_history.php?user_id=${user.id}`)
+      fetch(`${API_BASE}/get_user_history.php?user_id=${user.id}`, {
+        credentials: 'include' 
+      })
         .then(res => res.json())
         .then(data => setLogs(data))
         .catch(err => {

@@ -18,7 +18,8 @@ if (!isset($_SESSION['user_id'])) {
     $user_id = $_SESSION['user_id'];
 }
 
-$sql = "SELECT id, drill_id as drillId, score, pass as passed, timestamp as date FROM drill_results WHERE user_id = ? ORDER BY timestamp ASC";
+/*$sql = "SELECT id, drill_id as drillId, score, pass as passed, timestamp as date FROM drill_results WHERE user_id = ? ORDER BY timestamp ASC";*/
+$sql = "SELECT id, drill_id as drillId, score, pass as passed, DATE_FORMAT(timestamp, '%Y-%m-%dT%H:%i:%s') as date FROM drill_results WHERE user_id = ? ORDER BY timestamp ASC";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
