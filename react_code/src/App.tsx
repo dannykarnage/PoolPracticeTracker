@@ -4,14 +4,14 @@ import {
   Routes, 
   Route, 
   Link, 
-  useLocation,
-  useNavigate,
-  useParams,
+  useLocation, 
+  useNavigate, 
+  useParams, 
   useSearchParams
 } from 'react-router-dom';
 import { 
   Menu, X, User, LogIn, LogOut, Play, Pause, CheckCircle, 
-  XCircle, ChevronRight, BarChart2, History, Trophy, Clock,
+  XCircle, ChevronRight, BarChart2, History, Trophy, Clock, 
   RotateCcw, RefreshCw, Settings, Mic, MicOff, HelpCircle, UserPlus, Key, Mail, Shield, AlertCircle
 } from 'lucide-react';
 import { 
@@ -22,7 +22,7 @@ import {
 /**
  * POOL PRACTICE TRACKER + SHOT CLOCK
  * Version: React Router Enabled
- * Updated: Replaced alerts with UI messages, added 404 handling
+ * Updated: ShotClock Link Styling Fix - Forced persistent colors
  */
 
 // --- Constants ---
@@ -99,10 +99,11 @@ const AudioEngine = () => {
     osc.stop(ctx.currentTime + duration);
   };
 
-  const beepLow = () => playTone(600, 'sine', 0.2, 0.2); 
-  const beepHigh = () => playTone(880, 'sine', 0.15, 0.2); 
-  const warningBeep = () => playTone(600, 'triangle', 0.3, 0.2); 
-  
+  const beepLow = () => playTone(600, 'sine', 0.2, 0.4); 
+  const beepHigh = () => playTone(880, 'sine', 0.15, 0.4); 
+  const warningBeep = () => playTone(600, 'triangle', 0.3, 0.4); 
+  const longWarningBeep = () => playTone(600, 'triangle', 1.0, 0.4);
+
   const foulBuzzer = () => {
     const count = 5;
     const interval = 240;
@@ -111,7 +112,7 @@ const AudioEngine = () => {
     }
   };
 
-  return { init, beepLow, beepHigh, warningBeep, foulBuzzer };
+  return { init, beepLow, beepHigh, warningBeep, longWarningBeep, foulBuzzer };
 };
 
 // --- Helper Components ---
@@ -159,7 +160,7 @@ const ShotClock = () => {
   const [warn10s, setWarn10s] = useState(false);
   const [playerMode, setPlayerMode] = useState<'single' | 'two'>('two');
   const [matchDurationMins, setMatchDurationMins] = useState(20);
-  const [fastClockEnabled, setFastClockEnabled] = useState(false);
+  const [fastClockEnabled, setFastClockEnabled] = useState(true);
   const [fastClockTriggerMins, setFastClockTriggerMins] = useState(10);
   const [fastShotTime, setFastShotTime] = useState(15);
 
@@ -211,20 +212,36 @@ const ShotClock = () => {
     if (gameType === 'ultimate' && isMatchActive && matchTimeLeft > 0) {
       matchTimerRef.current = window.setInterval(() => {
         setMatchTimeLeft((prev) => {
+          const newVal = prev - 1;
+          // Determine the trigger time in seconds
+          // If Fast Clock is ON: Trigger at the Fast Clock Trigger setting
+          // If Fast Clock is OFF: Trigger at exactly 10 minutes (600 seconds)
+          const triggerTimeSeconds = fastClockEnabled 
+            ? fastClockTriggerMins * 60 
+            : 600;
+          // Check if we just hit the trigger time
+          // (We use prev - 1 because newVal is the time about to be set)
+          if (newVal === triggerTimeSeconds) {
+            audio.current.longWarningBeep();
+          }
+          // Warning tone every second for the last 10 seconds of the match
+          if (newVal <= 10 && newVal > 0) {
+             audio.current.beepLow();
+          }
           if (prev <= 0) {
             setIsMatchActive(false);
             setIsActive(false);
             audio.current.foulBuzzer();
             return 0;
           }
-          return prev - 1;
+          return newVal;
         });
       }, 1000);
     } else {
       if(matchTimerRef.current) clearInterval(matchTimerRef.current);
     }
     return () => { if(matchTimerRef.current) clearInterval(matchTimerRef.current); };
-  }, [gameType, isMatchActive, matchTimeLeft]);
+  }, [gameType, isMatchActive, matchTimeLeft, fastClockEnabled, fastClockTriggerMins]);
 
   // Actions
   const startGame = () => {
@@ -351,7 +368,7 @@ const ShotClock = () => {
               </>
             ) : (
               <>
-                 <div className="space-y-2">
+                  <div className="space-y-2">
                   <h4 className="text-white font-bold text-base text-sky-400">Ultimate Pool Match</h4>
                   <p>A timed match format where players race against a Match Clock and a Shot Clock simultaneously.</p>
                 </div>
@@ -423,7 +440,8 @@ const ShotClock = () => {
             <button onClick={() => setScreen('select')} className="absolute top-4 left-4 text-white/70 hover:text-white p-1">← Back</button>
             <button onClick={() => setShowHelp(true)} className="absolute top-4 right-4 text-white/70 hover:text-white p-1"><HelpCircle size={20} /></button>
             <h1 className="text-2xl font-black italic tracking-tighter uppercase text-white mt-2">{gameType === 'ultimate' ? 'Ultimate Pool Match' : 'Classic Shot Clock'}</h1>
-            <h1 className="text-l font-black italic text-white mt-1">by poolpracticetracker.com</h1>
+            {/* Config screen: Link is white because background is colored */}
+            <Link to="/" className="text-l font-black italic mt-1 block hover:underline text-white">by poolpracticetracker.com</Link>
             <p className="text-white/80 text-xs mt-1">Setup</p>
           </div>
           <div className="p-6 space-y-6 overflow-y-auto">
@@ -463,7 +481,10 @@ const ShotClock = () => {
       <div className="h-14 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 shrink-0">
          <div className="flex items-center gap-2">
             {gameType === 'ultimate' ? <Trophy className="text-sky-500" size={20} /> : <Clock className="text-emerald-500" size={20} />}
-            <span className="font-bold text-slate-200 text-sm">{gameType === 'ultimate' ? 'Ultimate Pool Match' : 'Shot Clock'}</span>
+            <span className="font-bold text-slate-200 text-sm">{gameType === 'ultimate' ? 'Ultimate Pool Match Clock by ' : 'Shot Clock by '}
+            {/* Fixed Link Styling: Explicitly set text color to sky-500 or emerald-500 to match icons */}
+            <Link to="/" className={`font-bold hover:underline ${gameType === 'ultimate' ? 'text-sky-500' : 'text-emerald-500'}`}>PoolPracticeTracker.com</Link>
+            </span>
          </div>
          <div className="flex gap-2">
             {playerMode === 'single' && (
@@ -570,11 +591,11 @@ const Header = ({ isMenuOpen, setIsMenuOpen, user, onLogout }: any) => {
             <button onClick={() => { navigate('/drills'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg font-bold text-slate-300 hover:bg-slate-700">Drills</button>
             <button onClick={() => { navigate('/shot-clock'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg font-bold text-emerald-400 hover:bg-slate-700">Shot Clock</button>
             {user ? (
-               <>
-               <button onClick={() => { navigate('/profile'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg font-bold text-slate-300 hover:bg-slate-700">My Progress</button>
-               <button onClick={() => { navigate('/account'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg font-bold text-slate-300 hover:bg-slate-700">My Account</button>
-               <button onClick={onLogout} className="w-full text-left px-4 py-3 rounded-lg font-bold text-red-400 hover:bg-slate-700">Logout</button>
-               </>
+                <>
+                <button onClick={() => { navigate('/profile'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg font-bold text-slate-300 hover:bg-slate-700">My Progress</button>
+                <button onClick={() => { navigate('/account'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg font-bold text-slate-300 hover:bg-slate-700">My Account</button>
+                <button onClick={onLogout} className="w-full text-left px-4 py-3 rounded-lg font-bold text-red-400 hover:bg-slate-700">Logout</button>
+                </>
             ) : (
               <button onClick={() => { navigate('/login'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg font-bold text-white hover:bg-slate-700">Login</button>
             )}
@@ -642,7 +663,7 @@ const DrillDetail = ({ drill, onBack, onLog, user }: { drill: Drill, onBack: () 
         setFeedback({ type: 'success', msg: "Score Logged Successfully!" });
         // Delay navigation so user sees success message
         setTimeout(() => {
-             onBack();
+              onBack();
         }, 1500);
       } else { 
           setFeedback({ type: 'error', msg: "Error logging score: " + result.message }); 

@@ -99,10 +99,11 @@ const AudioEngine = () => {
     osc.stop(ctx.currentTime + duration);
   };
 
-  const beepLow = () => playTone(600, 'sine', 0.2, 0.2); 
-  const beepHigh = () => playTone(880, 'sine', 0.15, 0.2); 
-  const warningBeep = () => playTone(600, 'triangle', 0.3, 0.2); 
-  
+  const beepLow = () => playTone(600, 'sine', 0.2, 0.4); 
+  const beepHigh = () => playTone(880, 'sine', 0.15, 0.4); 
+  const warningBeep = () => playTone(600, 'triangle', 0.3, 0.4); 
+  const longWarningBeep = () => playTone(600, 'triangle', 1.0, 0.4);
+
   const foulBuzzer = () => {
     const count = 5;
     const interval = 240;
@@ -111,7 +112,7 @@ const AudioEngine = () => {
     }
   };
 
-  return { init, beepLow, beepHigh, warningBeep, foulBuzzer };
+  return { init, beepLow, beepHigh, warningBeep, longWarningBeep, foulBuzzer };
 };
 
 // --- Helper Components ---
@@ -159,7 +160,7 @@ const ShotClock = () => {
   const [warn10s, setWarn10s] = useState(false);
   const [playerMode, setPlayerMode] = useState<'single' | 'two'>('two');
   const [matchDurationMins, setMatchDurationMins] = useState(20);
-  const [fastClockEnabled, setFastClockEnabled] = useState(false);
+  const [fastClockEnabled, setFastClockEnabled] = useState(true);
   const [fastClockTriggerMins, setFastClockTriggerMins] = useState(10);
   const [fastShotTime, setFastShotTime] = useState(15);
 
@@ -211,20 +212,36 @@ const ShotClock = () => {
     if (gameType === 'ultimate' && isMatchActive && matchTimeLeft > 0) {
       matchTimerRef.current = window.setInterval(() => {
         setMatchTimeLeft((prev) => {
+          const newVal = prev - 1;
+          // Determine the trigger time in seconds
+          // If Fast Clock is ON: Trigger at the Fast Clock Trigger setting
+          // If Fast Clock is OFF: Trigger at exactly 10 minutes (600 seconds)
+          const triggerTimeSeconds = fastClockEnabled 
+            ? fastClockTriggerMins * 60 
+            : 600;
+          // Check if we just hit the trigger time
+          // (We use prev - 1 because newVal is the time about to be set)
+          if (newVal === triggerTimeSeconds) {
+            audio.current.longWarningBeep();
+          }
+          // Warning tone every second for the last 10 seconds of the match
+          if (newVal <= 10 && newVal > 0) {
+             audio.current.beepLow();
+          }
           if (prev <= 0) {
             setIsMatchActive(false);
             setIsActive(false);
             audio.current.foulBuzzer();
             return 0;
           }
-          return prev - 1;
+          return newVal;
         });
       }, 1000);
     } else {
       if(matchTimerRef.current) clearInterval(matchTimerRef.current);
     }
     return () => { if(matchTimerRef.current) clearInterval(matchTimerRef.current); };
-  }, [gameType, isMatchActive, matchTimeLeft]);
+  }, [gameType, isMatchActive, matchTimeLeft, fastClockEnabled, fastClockTriggerMins]);
 
   // Actions
   const startGame = () => {
@@ -463,7 +480,7 @@ const ShotClock = () => {
       <div className="h-14 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 shrink-0">
          <div className="flex items-center gap-2">
             {gameType === 'ultimate' ? <Trophy className="text-sky-500" size={20} /> : <Clock className="text-emerald-500" size={20} />}
-            <span className="font-bold text-slate-200 text-sm">{gameType === 'ultimate' ? 'Ultimate Pool Match' : 'Shot Clock'}</span>
+            <span className="font-bold text-slate-200 text-sm">{gameType === 'ultimate' ? 'Ultimate Pool Match Clock by ' : 'Shot Clock by '}<Link to="/">PoolPracticeTracker.com</Link></span>
          </div>
          <div className="flex gap-2">
             {playerMode === 'single' && (
