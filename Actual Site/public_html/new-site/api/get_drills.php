@@ -5,8 +5,8 @@ header("Access-Control-Allow-Origin: *");
 include 'db_connect.php';
 
 // Fetch published drills
-// UPDATED: Added has_video and youtube_video_code to the SELECT statement
-$sql = "SELECT drill_id as id, name as title, featured, description, description_new, pass_fail, score, out_of, out_of_num as maxScore, out_of_pass as passThreshold, has_video, youtube_video_code FROM drills WHERE published = 1";
+// UPDATED: Added has_creator_video, creator_video_youtube_video_code, and creator_video_description to SELECT
+$sql = "SELECT drill_id as id, name as title, featured, description, description_new, pass_fail, score, out_of, out_of_num as maxScore, out_of_pass as passThreshold, has_video, youtube_video_code, has_creator_video, creator_video_youtube_video_code, creator_video_description FROM drills WHERE published = 1";
 $result = $conn->query($sql);
 
 $drills = [];
@@ -43,10 +43,14 @@ while($row = $result->fetch_assoc()) {
         // Assuming diagrams are named [id].png in /drills/diagrams/ relative to web root
         'diagramUrl' => "/drills/diagrams/" . $row['id'] . ".png",
         
-        // UPDATED: Pass video data to the frontend
-        // We pass has_video exactly as it comes from DB (React handles 1 vs "1" vs true)
+        // Video Data
         'has_video' => $row['has_video'], 
-        'youtube_video_code' => $row['youtube_video_code']
+        'youtube_video_code' => $row['youtube_video_code'],
+
+        // UPDATED: Creator Video Data
+        'has_creator_video' => $row['has_creator_video'],
+        'creator_video_youtube_video_code' => $row['creator_video_youtube_video_code'],
+        'creator_video_description' => $row['creator_video_description']
     ];
 }
 

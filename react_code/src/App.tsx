@@ -12,7 +12,7 @@ import {
 import { 
   Menu, X, User, LogIn, LogOut, Play, Pause, CheckCircle, 
   XCircle, ChevronRight, BarChart2, History, Trophy, Clock, 
-  RotateCcw, RefreshCw, Settings, Mic, MicOff, HelpCircle, UserPlus, Key, Mail, Shield, AlertCircle, Video
+  RotateCcw, RefreshCw, Settings, Mic, MicOff, HelpCircle, UserPlus, Key, Mail, Shield, AlertCircle, Video, Youtube, MessageSquare
 } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, 
@@ -22,7 +22,7 @@ import {
 /**
  * POOL PRACTICE TRACKER + SHOT CLOCK
  * Version: React Router Enabled
- * Updated: Robust video detection logic (loose equality for DB types)
+ * Updated: Moved "Contact Us" link to main nav bar with standard styling
  */
 
 // --- Constants ---
@@ -42,12 +42,17 @@ interface Drill {
   passThreshold?: number;
   diagramUrl?: string;
   featured?: boolean;
-  // Support both camelCase (internal/mock) and snake_case (DB)
+  
+  // Demonstration Video
   hasVideo?: boolean;
   youtubeVideoCode?: string;
-  // Allow string or number for has_video to handle "1" vs 1 from different DB drivers
   has_video?: number | boolean | string; 
   youtube_video_code?: string;  
+
+  // Creator Video
+  has_creator_video?: number | boolean | string;
+  creator_video_youtube_video_code?: string;
+  creator_video_description?: string;
 }
 
 interface DrillLog {
@@ -61,6 +66,7 @@ interface DrillLog {
 interface UserSession {
   id: number;
   username: string;
+  email: string; // UPDATED: Added email to session type
 }
 
 // --- Mock Data (Fallback) ---
@@ -73,14 +79,16 @@ const MOCK_DRILLS: Drill[] = [
     diagramUrl: "", 
     featured: true,
     hasVideo: true,
-    youtubeVideoCode: "G_IDy2bQENY" // Example video
+    youtubeVideoCode: "G_IDy2bQENY",
+    has_creator_video: 1,
+    creator_video_youtube_video_code: "dQw4w9WgXcQ", 
+    creator_video_description: "Here is a breakdown of why this drill is critical for speed control."
   },
   { id: 2, title: "L-Drill (Demo)", type: 'score_out_of', maxScore: 10, description: "Run balls in L-shape without hitting rails.", diagramUrl: "", featured: true },
   { id: 3, title: "Long Potting (Demo)", type: 'score', description: "Pot object ball into corner from distance. High score wins.", diagramUrl: "", featured: true }
 ];
 
 // --- Audio Engine (Shot Clock) ---
-// Converted to Class to avoid Invalid Hook Call inside useRef initial value
 class AudioEngine {
   private ctx: AudioContext | null = null;
 
@@ -191,7 +199,6 @@ const ShotClock = () => {
   // Refs
   const shotTimerRef = useRef<number | null>(null);
   const matchTimerRef = useRef<number | null>(null);
-  // Use lazy initialization for AudioEngine ref to avoid recreating class on every render
   const audio = useRef<AudioEngine | null>(null);
   if (!audio.current) {
     audio.current = new AudioEngine();
@@ -565,6 +572,7 @@ const TitleUpdater = () => {
   return null;
 };
 
+// Re-inserted Header Component with updated Contact Link position
 const Header = ({ isMenuOpen, setIsMenuOpen, user, onLogout }: any) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -593,6 +601,8 @@ const Header = ({ isMenuOpen, setIsMenuOpen, user, onLogout }: any) => {
         <nav className="hidden md:flex items-center gap-1">
           <button onClick={() => navigate('/')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all duration-200 flex items-center gap-2 ${isActive('/') ? 'bg-slate-800 text-emerald-400' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>Home</button>
           <button onClick={() => navigate('/drills')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all duration-200 flex items-center gap-2 ${isActive('/drills') ? 'bg-slate-800 text-emerald-400' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>Drills</button>
+          {/* UPDATED: Contact Us Link (Styled same as Home/Drills) */}
+          <button onClick={() => navigate('/contact')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all duration-200 flex items-center gap-2 ${isActive('/contact') ? 'bg-slate-800 text-emerald-400' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>Contact Us</button>
           <button onClick={() => navigate('/shot-clock')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all duration-200 flex items-center gap-2 border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-600/20`}>Shot Clock</button>
           {user && <button onClick={() => navigate('/profile')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all duration-200 flex items-center gap-2 ${isActive('/profile') ? 'bg-slate-800 text-emerald-400' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><BarChart2 size={16} /> My Progress</button>}
           
@@ -618,6 +628,8 @@ const Header = ({ isMenuOpen, setIsMenuOpen, user, onLogout }: any) => {
           <div className="flex flex-col p-2 space-y-1">
             <button onClick={() => { navigate('/'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg font-bold text-slate-300 hover:bg-slate-700">Home</button>
             <button onClick={() => { navigate('/drills'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg font-bold text-slate-300 hover:bg-slate-700">Drills</button>
+            {/* UPDATED: Mobile menu order */}
+            <button onClick={() => { navigate('/contact'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg font-bold text-slate-300 hover:bg-slate-700">Contact Us</button>
             <button onClick={() => { navigate('/shot-clock'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg font-bold text-emerald-400 hover:bg-slate-700">Shot Clock</button>
             {user ? (
                 <>
@@ -681,8 +693,12 @@ const DrillDetail = ({ drill, onBack, onLog, user }: { drill: Drill, onBack: () 
   const hasVideoDB = drill.has_video == 1 || drill.has_video === '1' || drill.has_video === true;
   const hasVideoMock = drill.hasVideo === true;
   const showVideo = hasVideoDB || hasVideoMock;
-  
   const videoCode = drill.youtubeVideoCode || drill.youtube_video_code;
+
+  // New Creator Video Logic
+  const hasCreatorVideo = drill.has_creator_video == 1 || drill.has_creator_video === '1' || drill.has_creator_video === true;
+  const creatorVideoCode = drill.creator_video_youtube_video_code;
+  const creatorVideoDesc = drill.creator_video_description;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -715,8 +731,15 @@ const DrillDetail = ({ drill, onBack, onLog, user }: { drill: Drill, onBack: () 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
       <button onClick={onBack} className="mb-6 flex items-center text-slate-400 hover:text-white font-bold text-sm transition-colors">← Back to Drills</button>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="space-y-6">
+      
+      {/* GRID LAYOUT: 
+        Mobile (1 col): Diagram/Desc -> Log/Demo -> Creator Video
+        Desktop (2 cols): Left Col (Diagram/Desc, Creator Video) | Right Col (Log/Demo)
+      */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        
+        {/* 1. Left Column Top: Diagram & Description */}
+        <div className="space-y-6 lg:col-start-1">
           <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl aspect-video relative group flex items-center justify-center bg-black">
              {drill.diagramUrl ? <img src={getImageUrl(drill.diagramUrl)} alt={drill.title} className="w-full h-full object-contain" /> : <Trophy size={64} className="text-slate-700" />}
           </div>
@@ -724,61 +747,254 @@ const DrillDetail = ({ drill, onBack, onLog, user }: { drill: Drill, onBack: () 
             <h2 className="text-3xl font-black text-white mb-4">{drill.title}</h2>
             <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700 text-slate-300 leading-relaxed text-sm whitespace-pre-wrap"><h4 className="text-emerald-400 font-bold uppercase tracking-wider text-xs mb-2">Instructions</h4>{drill.description}</div>
           </div>
-          
-          {/* YouTube Video Section */}
-          {showVideo && videoCode && (
-            <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
+        </div>
+
+        {/* 2. Right Column Content: Log Result & Demo Video */}
+        {/* On desktop, force to col 2. On mobile, this DOM order places it 2nd. */}
+        <div className="space-y-6 lg:col-start-2 lg:row-start-1 lg:row-span-full lg:pl-8">
+            <div className="sticky top-24 space-y-6">
+                <div className="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl z-10">
+                    <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2"><History className="text-emerald-500" /> Log Result</h3>
+                    {!user ? (
+                    <div className="text-center py-8">
+                        <p className="text-slate-400 mb-4">You must be logged in to track your progress.</p>
+                        <button onClick={() => navigate('/login')} className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-bold transition-all hover:text-emerald-400 hover:shadow-lg hover:shadow-emerald-900/20">Please Login</button>
+                    </div>
+                    ) : (
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        {drill.type === 'pass_fail' && (
+                        <div className="grid grid-cols-2 gap-4">
+                            <button type="button" onClick={() => setPassed(false)} className={`p-4 rounded-xl border-2 font-bold flex flex-col items-center gap-2 transition-all ${passed === false ? 'bg-red-500/20 border-red-500 text-red-400' : 'bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-500'}`}><XCircle size={32} /> Failed</button>
+                            <button type="button" onClick={() => setPassed(true)} className={`p-4 rounded-xl border-2 font-bold flex flex-col items-center gap-2 transition-all ${passed === true ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-500'}`}><CheckCircle size={32} /> Passed</button>
+                        </div>
+                        )}
+                        {(drill.type === 'score' || drill.type === 'score_out_of') && (
+                        <div>
+                            <label className="block text-slate-400 text-sm font-bold mb-2">Enter Score {drill.maxScore ? `(out of ${drill.maxScore})` : ''}</label>
+                            <input type="number" value={score} onChange={(e) => setScore(e.target.value)} className="w-full bg-slate-900 border-2 border-slate-700 rounded-xl px-4 py-3 text-white font-mono text-xl focus:border-emerald-500 focus:outline-none transition-colors" placeholder="0" max={drill.maxScore} />
+                        </div>
+                        )}
+                        {feedback.msg && (
+                            <div className={`p-3 rounded text-sm text-center border ${feedback.type === 'success' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' : 'bg-red-500/20 text-red-400 border-red-500/50'}`}>
+                                {feedback.msg}
+                            </div>
+                        )}
+                        <button type="submit" disabled={submitting || (drill.type === 'pass_fail' && passed === null) || ((drill.type === 'score' || drill.type === 'score_out_of') && score === '')} className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-lg shadow-lg transition-all">{submitting ? 'Saving...' : 'Save Result'}</button>
+                    </form>
+                    )}
+                </div>
+                
+                {/* Demonstration Video */}
+                {showVideo && videoCode && (
+                    <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
+                        <div className="p-4 bg-slate-900 border-b border-slate-700 flex items-center gap-2">
+                            <Video size={20} className="text-emerald-500" />
+                            <h4 className="text-white font-bold text-sm uppercase tracking-wider">Demonstration</h4>
+                        </div>
+                        <div className="aspect-video w-full">
+                            <iframe 
+                            width="100%" 
+                            height="100%" 
+                            src={`https://www.youtube.com/embed/${videoCode}`} 
+                            title={drill.title}
+                            frameBorder="0" 
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                            allowFullScreen
+                            className="w-full h-full"
+                            ></iframe>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+
+        {/* 3. Left Column Bottom: Creator Video */}
+        {hasCreatorVideo && creatorVideoCode && (
+            <div className="lg:col-start-1 bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
                <div className="p-4 bg-slate-900 border-b border-slate-700 flex items-center gap-2">
-                 <Video size={20} className="text-emerald-500" />
-                 <h4 className="text-white font-bold text-sm uppercase tracking-wider">Drill Video</h4>
+                 <Youtube size={20} className="text-red-500" />
+                 <h4 className="text-white font-bold text-sm uppercase tracking-wider">Creator's Take</h4>
                </div>
                <div className="aspect-video w-full">
                  <iframe 
                    width="100%" 
                    height="100%" 
-                   src={`https://www.youtube.com/embed/${videoCode}`} 
-                   title={drill.title}
+                   src={`https://www.youtube.com/embed/${creatorVideoCode}`} 
+                   title={`${drill.title} - Creator's Take`}
                    frameBorder="0" 
                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
                    allowFullScreen
                    className="w-full h-full"
                  ></iframe>
                </div>
+               {/* Description text block below video */}
+               {creatorVideoDesc && (
+                 <div className="p-4 bg-slate-800/50 text-slate-300 text-sm leading-relaxed border-t border-slate-700">
+                   {creatorVideoDesc}
+                 </div>
+               )}
             </div>
-          )}
-        </div>
-        <div className="lg:pl-8">
-          <div className="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl sticky top-24">
-            <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2"><History className="text-emerald-500" /> Log Result</h3>
-            {!user ? (
-              <div className="text-center py-8">
-                <p className="text-slate-400 mb-4">You must be logged in to track your progress.</p>
-                <button onClick={() => navigate('/login')} className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-bold transition-all hover:text-emerald-400 hover:shadow-lg hover:shadow-emerald-900/20">Please Login</button>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {drill.type === 'pass_fail' && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <button type="button" onClick={() => setPassed(false)} className={`p-4 rounded-xl border-2 font-bold flex flex-col items-center gap-2 transition-all ${passed === false ? 'bg-red-500/20 border-red-500 text-red-400' : 'bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-500'}`}><XCircle size={32} /> Failed</button>
-                    <button type="button" onClick={() => setPassed(true)} className={`p-4 rounded-xl border-2 font-bold flex flex-col items-center gap-2 transition-all ${passed === true ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-500'}`}><CheckCircle size={32} /> Passed</button>
-                  </div>
-                )}
-                {(drill.type === 'score' || drill.type === 'score_out_of') && (
-                  <div>
-                    <label className="block text-slate-400 text-sm font-bold mb-2">Enter Score {drill.maxScore ? `(out of ${drill.maxScore})` : ''}</label>
-                    <input type="number" value={score} onChange={(e) => setScore(e.target.value)} className="w-full bg-slate-900 border-2 border-slate-700 rounded-xl px-4 py-3 text-white font-mono text-xl focus:border-emerald-500 focus:outline-none transition-colors" placeholder="0" max={drill.maxScore} />
-                  </div>
-                )}
-                {feedback.msg && (
-                    <div className={`p-3 rounded text-sm text-center border ${feedback.type === 'success' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' : 'bg-red-500/20 text-red-400 border-red-500/50'}`}>
-                        {feedback.msg}
-                    </div>
-                )}
-                <button type="submit" disabled={submitting || (drill.type === 'pass_fail' && passed === null) || ((drill.type === 'score' || drill.type === 'score_out_of') && score === '')} className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-lg shadow-lg transition-all">{submitting ? 'Saving...' : 'Save Result'}</button>
-              </form>
-            )}
+        )}
+      </div>
+    </div>
+  );
+};
+
+// --- Contact Form Component ---
+const ContactForm = ({ user }: { user: UserSession | null }) => {
+  const [subject, setSubject] = useState('');
+  const [email, setEmail] = useState(user?.email || '');
+  const [message, setMessage] = useState('');
+  const [honeypot, setHoneypot] = useState(''); // Bot trap
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [feedback, setFeedback] = useState('');
+  const [countdown, setCountdown] = useState(10);
+  const navigate = useNavigate();
+
+  // Update email if user logs in after page load
+  useEffect(() => {
+    if (user?.email) setEmail(user.email);
+  }, [user]);
+
+  // Handle countdown redirection
+  useEffect(() => {
+    let timer: number;
+    if (status === 'success' && countdown > 0) {
+      timer = window.setInterval(() => setCountdown(c => c - 1), 1000);
+    } else if (status === 'success' && countdown === 0) {
+      navigate('/');
+    }
+    return () => clearInterval(timer);
+  }, [status, countdown, navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setStatus('submitting');
+    setFeedback('');
+
+    // Basic frontend validation
+    if (!subject || !email || !message) {
+      setStatus('error');
+      setFeedback('All fields are required.');
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/contact.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          subject, 
+          email, 
+          message, 
+          website_check: honeypot // Honeypot field
+        })
+      });
+      
+      const data = await res.json();
+      
+      if (data.success) {
+        setStatus('success');
+      } else {
+        setStatus('error');
+        setFeedback(data.message || 'Failed to send message.');
+      }
+    } catch (err) {
+      console.error(err);
+      setStatus('error');
+      setFeedback('Network error. Please try again.');
+    }
+  };
+
+  if (status === 'success') {
+    return (
+      <div className="max-w-md mx-auto mt-20 text-center animate-in fade-in zoom-in duration-300">
+        <div className="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl flex flex-col items-center">
+          <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mb-6">
+            <CheckCircle size={32} className="text-emerald-500" />
           </div>
+          <h2 className="text-2xl font-bold text-white mb-2">Message Sent!</h2>
+          <p className="text-slate-400 mb-6">Thank you for contacting us. We will get back to you shortly.</p>
+          <div className="text-sm text-slate-500 font-mono bg-slate-900 px-4 py-2 rounded-lg">
+            Redirecting in {countdown}s...
+          </div>
+          <button onClick={() => navigate('/')} className="mt-6 text-emerald-400 hover:text-emerald-300 font-bold text-sm hover:underline">Return Home Now</button>
         </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
+      <h1 className="text-3xl font-black text-white mb-8 text-center flex items-center justify-center gap-3">
+        <MessageSquare className="text-emerald-500" /> Contact Us
+      </h1>
+      
+      <div className="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl">
+        {status === 'error' && (
+          <div className="bg-red-500/20 text-red-400 p-4 rounded-xl mb-6 text-sm flex items-center gap-2 border border-red-500/50">
+            <AlertCircle size={16} /> {feedback}
+          </div>
+        )}
+        
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Honeypot Field (Hidden) */}
+          <div className="hidden">
+            <input 
+              type="text" 
+              name="website_check" 
+              value={honeypot} 
+              onChange={e => setHoneypot(e.target.value)} 
+              tabIndex={-1} 
+              autoComplete="off" 
+            />
+          </div>
+
+          <div>
+            <label className="block text-slate-400 text-sm font-bold mb-2">Subject <span className="text-red-500">*</span></label>
+            <input 
+              type="text" 
+              value={subject} 
+              onChange={e => setSubject(e.target.value)} 
+              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-emerald-500 focus:outline-none transition-colors" 
+              placeholder="How can we help?"
+              required 
+            />
+          </div>
+
+          <div>
+            <label className="block text-slate-400 text-sm font-bold mb-2">Email Address <span className="text-red-500">*</span></label>
+            <input 
+              type="email" 
+              value={email} 
+              onChange={e => setEmail(e.target.value)} 
+              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-emerald-500 focus:outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+              placeholder="your@email.com"
+              required 
+              disabled={!!user} // Optional: Disable if auto-filled from login
+            />
+            {user && <p className="text-xs text-slate-500 mt-1 italic">Auto-filled from your account.</p>}
+          </div>
+
+          <div>
+            <label className="block text-slate-400 text-sm font-bold mb-2">Message <span className="text-red-500">*</span> <span className="text-xs font-normal opacity-50">({message.length}/1000)</span></label>
+            <textarea 
+              value={message} 
+              onChange={e => setMessage(e.target.value.slice(0, 1000))} 
+              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-emerald-500 focus:outline-none transition-colors h-40 resize-none" 
+              placeholder="Tell us what's on your mind..."
+              required 
+            />
+          </div>
+
+          <button 
+            type="submit" 
+            disabled={status === 'submitting'} 
+            className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-lg shadow-lg transition-all flex items-center justify-center gap-2"
+          >
+            {status === 'submitting' ? 'Sending...' : 'Send Message'}
+          </button>
+        </form>
       </div>
     </div>
   );
@@ -874,7 +1090,7 @@ const LoginForm = ({ onLogin }: { onLogin: (user: UserSession) => void }) => {
     } catch (err) { 
         console.error(err);
         // Fallback for preview/demo
-        onLogin({ id: 999, username: username || "Demo User" });
+        onLogin({ id: 999, username: username || "Demo User", email: "demo@example.com" });
         navigate('/'); // Also redirect on fallback success
     } finally { setLoading(false); }
   };
@@ -1434,6 +1650,9 @@ export default function App() {
         <Route path="/account" element={<Layout user={user} onLogout={() => setUser(null)}><AccountPage user={user} onLogout={() => setUser(null)} /></Layout>} />
         <Route path="/account/change-email" element={<Layout user={user} onLogout={() => setUser(null)}><ChangeEmailForm user={user} onBack={() => window.history.back()} /></Layout>} />
         <Route path="/account/change-password" element={<Layout user={user} onLogout={() => setUser(null)}><ChangePasswordAuthenticatedForm user={user} onBack={() => window.history.back()} /></Layout>} />
+
+        {/* New Contact Route */}
+        <Route path="/contact" element={<Layout user={user} onLogout={() => setUser(null)}><ContactForm user={user} /></Layout>} />
 
         {/* 404 Fallback - Helps identify if routing is working but path is wrong */}
         <Route path="*" element={<Layout user={user} onLogout={() => setUser(null)}><NoMatch /></Layout>} />

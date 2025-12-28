@@ -18,7 +18,8 @@ $username = $conn->real_escape_string($data->username);
 $password = $data->password;
 
 // Fetch user
-$stmt = $conn->prepare("SELECT id, username, password, verified FROM users WHERE username = ? LIMIT 1");
+// UPDATED: Added 'email' to the selected fields
+$stmt = $conn->prepare("SELECT id, username, email, password, verified FROM users WHERE username = ? LIMIT 1");
 $stmt->bind_param("s", $username);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -38,7 +39,8 @@ if ($row = $result->fetch_assoc()) {
             'success' => true, 
             'user' => [
                 'id' => $row['id'],
-                'username' => $row['username']
+                'username' => $row['username'],
+                'email' => $row['email'] // UPDATED: Returning email for auto-fill features
             ]
         ]);
     } else {

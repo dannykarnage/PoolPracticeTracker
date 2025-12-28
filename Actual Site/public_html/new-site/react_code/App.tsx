@@ -4,15 +4,15 @@ import {
   Routes, 
   Route, 
   Link, 
-  useLocation,
-  useNavigate,
-  useParams,
+  useLocation, 
+  useNavigate, 
+  useParams, 
   useSearchParams
 } from 'react-router-dom';
 import { 
   Menu, X, User, LogIn, LogOut, Play, Pause, CheckCircle, 
-  XCircle, ChevronRight, BarChart2, History, Trophy, Clock,
-  RotateCcw, RefreshCw, Settings, Mic, MicOff, HelpCircle, UserPlus, Key, Mail, Shield, AlertCircle
+  XCircle, ChevronRight, BarChart2, History, Trophy, Clock, 
+  RotateCcw, RefreshCw, Settings, Mic, MicOff, HelpCircle, UserPlus, Key, Mail, Shield, AlertCircle, Video
 } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, 
@@ -22,7 +22,7 @@ import {
 /**
  * POOL PRACTICE TRACKER + SHOT CLOCK
  * Version: React Router Enabled
- * Updated: Replaced alerts with UI messages, added 404 handling
+ * Updated: Moved YouTube Player to right column below Log Result card
  */
 
 // --- Constants ---
@@ -42,6 +42,12 @@ interface Drill {
   passThreshold?: number;
   diagramUrl?: string;
   featured?: boolean;
+  // Support both camelCase (internal/mock) and snake_case (DB)
+  hasVideo?: boolean;
+  youtubeVideoCode?: string;
+  // Allow string or number for has_video to handle "1" vs 1 from different DB drivers
+  has_video?: number | boolean | string; 
+  youtube_video_code?: string;  
 }
 
 interface DrillLog {
@@ -59,61 +65,68 @@ interface UserSession {
 
 // --- Mock Data (Fallback) ---
 const MOCK_DRILLS: Drill[] = [
-  { id: 1, title: "Stop Shot Drill (Demo)", type: 'pass_fail', description: "Shoot object ball into corner, stop cue ball dead. Repeat 10 times. Must stop dead to count.", diagramUrl: "", featured: true },
+  { 
+    id: 1, 
+    title: "Stop Shot Drill (Demo)", 
+    type: 'pass_fail', 
+    description: "Shoot object ball into corner, stop cue ball dead. Repeat 10 times. Must stop dead to count.", 
+    diagramUrl: "", 
+    featured: true,
+    hasVideo: true,
+    youtubeVideoCode: "G_IDy2bQENY" // Example video
+  },
   { id: 2, title: "L-Drill (Demo)", type: 'score_out_of', maxScore: 10, description: "Run balls in L-shape without hitting rails.", diagramUrl: "", featured: true },
   { id: 3, title: "Long Potting (Demo)", type: 'score', description: "Pot object ball into corner from distance. High score wins.", diagramUrl: "", featured: true }
 ];
 
 // --- Audio Engine (Shot Clock) ---
-const AudioEngine = () => {
-  const audioCtxRef = useRef<AudioContext | null>(null);
+// Converted to Class to avoid Invalid Hook Call inside useRef initial value
+class AudioEngine {
+  private ctx: AudioContext | null = null;
 
-  const init = () => {
-    if (!audioCtxRef.current) {
+  init() {
+    if (!this.ctx) {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (AudioContextClass) {
-        audioCtxRef.current = new AudioContextClass();
+        this.ctx = new AudioContextClass();
       }
-    } else if (audioCtxRef.current.state === 'suspended') {
-      audioCtxRef.current.resume();
+    } else if (this.ctx.state === 'suspended') {
+      this.ctx.resume();
     }
-  };
+  }
 
-  const playTone = (freq: number, type: OscillatorType, duration: number, vol: number = 0.5) => {
-    if (!audioCtxRef.current) init();
-    const ctx = audioCtxRef.current;
-    if (!ctx) return;
+  playTone(freq: number, type: OscillatorType, duration: number, vol: number = 0.5) {
+    if (!this.ctx) this.init();
+    if (!this.ctx) return;
 
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
 
     osc.type = type;
-    osc.frequency.setValueAtTime(freq, ctx.currentTime);
-    gain.gain.setValueAtTime(vol, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+    gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(this.ctx.destination);
 
     osc.start();
-    osc.stop(ctx.currentTime + duration);
-  };
+    osc.stop(this.ctx.currentTime + duration);
+  }
 
-  const beepLow = () => playTone(600, 'sine', 0.2, 0.4); 
-  const beepHigh = () => playTone(880, 'sine', 0.15, 0.4); 
-  const warningBeep = () => playTone(600, 'triangle', 0.3, 0.4); 
-  const longWarningBeep = () => playTone(600, 'triangle', 1.0, 0.4);
+  beepLow() { this.playTone(600, 'sine', 0.2, 0.4); }
+  beepHigh() { this.playTone(880, 'sine', 0.15, 0.4); }
+  warningBeep() { this.playTone(600, 'triangle', 0.3, 0.4); }
+  longWarningBeep() { this.playTone(600, 'triangle', 1.0, 0.4); }
 
-  const foulBuzzer = () => {
+  foulBuzzer() {
     const count = 5;
     const interval = 240;
     for (let i = 0; i < count; i++) {
-      setTimeout(() => { playTone(600, 'sine', 0.12, 0.12); }, i * interval);
+      setTimeout(() => { this.playTone(600, 'sine', 0.12, 0.12); }, i * interval);
     }
-  };
-
-  return { init, beepLow, beepHigh, warningBeep, longWarningBeep, foulBuzzer };
-};
+  }
+}
 
 // --- Helper Components ---
 const NumberSelect = ({ label, value, min, max, step, onChange, disabled = false, suffix = "s" }: any) => (
@@ -178,7 +191,12 @@ const ShotClock = () => {
   // Refs
   const shotTimerRef = useRef<number | null>(null);
   const matchTimerRef = useRef<number | null>(null);
-  const audio = useRef(AudioEngine());
+  // Use lazy initialization for AudioEngine ref to avoid recreating class on every render
+  const audio = useRef<AudioEngine | null>(null);
+  if (!audio.current) {
+    audio.current = new AudioEngine();
+  }
+
   const actionsRef = useRef<{start:()=>void; pause:()=>void; reset:()=>void; extend:()=>void}>({start:()=>{},pause:()=>{},reset:()=>{},extend:()=>{}});
 
   // Logic Hooks
@@ -190,11 +208,11 @@ const ShotClock = () => {
           const currentInt = Math.ceil(newVal);
           const prevInt = Math.ceil(prev);
           if (currentInt !== prevInt) {
-             if (warn10s && currentInt === 10) audio.current.warningBeep();
-             if (currentInt <= 5 && currentInt > 0) audio.current.beepLow();
+             if (warn10s && currentInt === 10) audio.current?.warningBeep();
+             if (currentInt <= 5 && currentInt > 0) audio.current?.beepLow();
           }
           if (newVal <= 0) {
-            audio.current.foulBuzzer();
+            audio.current?.foulBuzzer();
             setFoulTriggered(true);
             setIsActive(false);
             return 0;
@@ -222,16 +240,16 @@ const ShotClock = () => {
           // Check if we just hit the trigger time
           // (We use prev - 1 because newVal is the time about to be set)
           if (newVal === triggerTimeSeconds) {
-            audio.current.longWarningBeep();
+            audio.current?.longWarningBeep();
           }
           // Warning tone every second for the last 10 seconds of the match
           if (newVal <= 10 && newVal > 0) {
-             audio.current.beepLow();
+             audio.current?.beepLow();
           }
           if (prev <= 0) {
             setIsMatchActive(false);
             setIsActive(false);
-            audio.current.foulBuzzer();
+            audio.current?.foulBuzzer();
             return 0;
           }
           return newVal;
@@ -245,7 +263,7 @@ const ShotClock = () => {
 
   // Actions
   const startGame = () => {
-    audio.current.init();
+    audio.current?.init();
     setIsFirstShot(true);
     setExtensions({ p1: false, p2: false });
     setCurrentShotHasExtension(false);
@@ -368,7 +386,7 @@ const ShotClock = () => {
               </>
             ) : (
               <>
-                 <div className="space-y-2">
+                  <div className="space-y-2">
                   <h4 className="text-white font-bold text-base text-sky-400">Ultimate Pool Match</h4>
                   <p>A timed match format where players race against a Match Clock and a Shot Clock simultaneously.</p>
                 </div>
@@ -440,7 +458,8 @@ const ShotClock = () => {
             <button onClick={() => setScreen('select')} className="absolute top-4 left-4 text-white/70 hover:text-white p-1">← Back</button>
             <button onClick={() => setShowHelp(true)} className="absolute top-4 right-4 text-white/70 hover:text-white p-1"><HelpCircle size={20} /></button>
             <h1 className="text-2xl font-black italic tracking-tighter uppercase text-white mt-2">{gameType === 'ultimate' ? 'Ultimate Pool Match' : 'Classic Shot Clock'}</h1>
-            <h1 className="text-l font-black italic text-white mt-1">by poolpracticetracker.com</h1>
+            {/* Config screen: Link is white because background is colored */}
+            <Link to="/" className="text-l font-black italic mt-1 block hover:underline text-white">by poolpracticetracker.com</Link>
             <p className="text-white/80 text-xs mt-1">Setup</p>
           </div>
           <div className="p-6 space-y-6 overflow-y-auto">
@@ -480,7 +499,10 @@ const ShotClock = () => {
       <div className="h-14 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 shrink-0">
          <div className="flex items-center gap-2">
             {gameType === 'ultimate' ? <Trophy className="text-sky-500" size={20} /> : <Clock className="text-emerald-500" size={20} />}
-            <span className="font-bold text-slate-200 text-sm">{gameType === 'ultimate' ? 'Ultimate Pool Match Clock by ' : 'Shot Clock by '}<Link to="/">PoolPracticeTracker.com</Link></span>
+            <span className="font-bold text-slate-200 text-sm">{gameType === 'ultimate' ? 'Ultimate Pool Match Clock by ' : 'Shot Clock by '}
+            {/* Fixed Link Styling: Explicitly set text color to sky-500 or emerald-500 to match icons */}
+            <Link to="/" className={`font-bold hover:underline ${gameType === 'ultimate' ? 'text-sky-500' : 'text-emerald-500'}`}>PoolPracticeTracker.com</Link>
+            </span>
          </div>
          <div className="flex gap-2">
             {playerMode === 'single' && (
@@ -554,7 +576,18 @@ const Header = ({ isMenuOpen, setIsMenuOpen, user, onLogout }: any) => {
     <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900 border-b border-slate-800 shadow-lg h-16">
       <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2 group">
-          <div className="w-8 h-8 bg-emerald-500 rounded flex items-center justify-center text-slate-900 font-black italic transform -skew-x-12">P</div>
+          {/* P-Ball Logo (Styled like an 8-ball) */}
+          <div className="relative w-9 h-9 flex items-center justify-center transition-transform group-hover:rotate-12 duration-300">
+            {/* Ball Body with gradient for 3D effect */}
+            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-slate-700 via-black to-black border border-slate-600 shadow-lg"></div>
+            {/* Shine reflection */}
+            <div className="absolute top-2 right-2 w-2 h-2 bg-white rounded-full opacity-20 blur-[1px]"></div>
+            {/* Inner White Circle */}
+            <div className="absolute w-4 h-4 bg-slate-100 rounded-full flex items-center justify-center shadow-inner">
+              {/* The Letter P */}
+              <span className="text-black font-black text-[11px] font-sans leading-none pt-[1px]">P</span>
+            </div>
+          </div>
           <span className="font-bold text-slate-100 text-lg tracking-tight hidden sm:block group-hover:text-emerald-400 transition-colors">PoolPractice<span className="text-emerald-500">Tracker</span></span>
         </Link>
         <nav className="hidden md:flex items-center gap-1">
@@ -587,11 +620,11 @@ const Header = ({ isMenuOpen, setIsMenuOpen, user, onLogout }: any) => {
             <button onClick={() => { navigate('/drills'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg font-bold text-slate-300 hover:bg-slate-700">Drills</button>
             <button onClick={() => { navigate('/shot-clock'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg font-bold text-emerald-400 hover:bg-slate-700">Shot Clock</button>
             {user ? (
-               <>
-               <button onClick={() => { navigate('/profile'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg font-bold text-slate-300 hover:bg-slate-700">My Progress</button>
-               <button onClick={() => { navigate('/account'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg font-bold text-slate-300 hover:bg-slate-700">My Account</button>
-               <button onClick={onLogout} className="w-full text-left px-4 py-3 rounded-lg font-bold text-red-400 hover:bg-slate-700">Logout</button>
-               </>
+                <>
+                <button onClick={() => { navigate('/profile'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg font-bold text-slate-300 hover:bg-slate-700">My Progress</button>
+                <button onClick={() => { navigate('/account'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg font-bold text-slate-300 hover:bg-slate-700">My Account</button>
+                <button onClick={onLogout} className="w-full text-left px-4 py-3 rounded-lg font-bold text-red-400 hover:bg-slate-700">Logout</button>
+                </>
             ) : (
               <button onClick={() => { navigate('/login'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg font-bold text-white hover:bg-slate-700">Login</button>
             )}
@@ -641,6 +674,15 @@ const DrillDetail = ({ drill, onBack, onLog, user }: { drill: Drill, onBack: () 
   const [passed, setPassed] = useState<boolean | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{type:'success'|'error'|'', msg:string}>({ type: '', msg: '' });
+  const navigate = useNavigate();
+
+  // Normalize Video Data (handle both camelCase mocks and snake_case DB fields)
+  // Use loose equality (== 1) to match number 1 or string "1", or standard boolean
+  const hasVideoDB = drill.has_video == 1 || drill.has_video === '1' || drill.has_video === true;
+  const hasVideoMock = drill.hasVideo === true;
+  const showVideo = hasVideoDB || hasVideoMock;
+  
+  const videoCode = drill.youtubeVideoCode || drill.youtube_video_code;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -659,7 +701,7 @@ const DrillDetail = ({ drill, onBack, onLog, user }: { drill: Drill, onBack: () 
         setFeedback({ type: 'success', msg: "Score Logged Successfully!" });
         // Delay navigation so user sees success message
         setTimeout(() => {
-             onBack();
+              onBack();
         }, 1500);
       } else { 
           setFeedback({ type: 'error', msg: "Error logging score: " + result.message }); 
@@ -683,13 +725,13 @@ const DrillDetail = ({ drill, onBack, onLog, user }: { drill: Drill, onBack: () 
             <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700 text-slate-300 leading-relaxed text-sm whitespace-pre-wrap"><h4 className="text-emerald-400 font-bold uppercase tracking-wider text-xs mb-2">Instructions</h4>{drill.description}</div>
           </div>
         </div>
-        <div className="lg:pl-8">
-          <div className="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl sticky top-24">
+        <div className="lg:pl-8 space-y-6">
+          <div className="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl sticky top-24 z-10">
             <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2"><History className="text-emerald-500" /> Log Result</h3>
             {!user ? (
               <div className="text-center py-8">
                 <p className="text-slate-400 mb-4">You must be logged in to track your progress.</p>
-                <div className="px-6 py-2 bg-slate-700 text-white rounded-lg font-bold">Please Login</div>
+                <button onClick={() => navigate('/login')} className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-bold transition-all hover:text-emerald-400 hover:shadow-lg hover:shadow-emerald-900/20">Please Login</button>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-6">
@@ -714,6 +756,28 @@ const DrillDetail = ({ drill, onBack, onLog, user }: { drill: Drill, onBack: () 
               </form>
             )}
           </div>
+          
+          {/* YouTube Video Section - Moved to Right Column */}
+          {showVideo && videoCode && (
+            <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
+               <div className="p-4 bg-slate-900 border-b border-slate-700 flex items-center gap-2">
+                 <Video size={20} className="text-emerald-500" />
+                 <h4 className="text-white font-bold text-sm uppercase tracking-wider">Drill Video</h4>
+               </div>
+               <div className="aspect-video w-full">
+                 <iframe 
+                   width="100%" 
+                   height="100%" 
+                   src={`https://www.youtube.com/embed/${videoCode}`} 
+                   title={drill.title}
+                   frameBorder="0" 
+                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                   allowFullScreen
+                   className="w-full h-full"
+                 ></iframe>
+               </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
