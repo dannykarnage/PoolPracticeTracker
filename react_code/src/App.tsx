@@ -21,12 +21,13 @@ import {
 
 /**
  * POOL PRACTICE TRACKER + SHOT CLOCK
- * Version: React Router Enabled
- * Updated: Moved "Contact Us" link to main nav bar with standard styling
+ * Version: Production (Root Domain)
+ * Updated: Configured for deployment to poolpracticetracker.com (root)
  */
 
 // --- Constants ---
-const API_BASE = 'https://poolpracticetracker.com/new-site/api';
+// UPDATED: Pointing to root API location
+const API_BASE = 'https://poolpracticetracker.com/api';
 const SITE_BASE = 'https://poolpracticetracker.com/'; 
 
 // --- Types ---
@@ -122,16 +123,16 @@ class AudioEngine {
     osc.stop(this.ctx.currentTime + duration);
   }
 
-  beepLow() { this.playTone(600, 'sine', 0.2, 0.4); }
-  beepHigh() { this.playTone(880, 'sine', 0.15, 0.4); }
-  warningBeep() { this.playTone(600, 'triangle', 0.3, 0.4); }
-  longWarningBeep() { this.playTone(600, 'triangle', 1.0, 0.4); }
+  beepLow() { this.playTone(600, 'sine', 0.2, 0.8); }
+  beepHigh() { this.playTone(880, 'sine', 0.15, 0.8); }
+  warningBeep() { this.playTone(600, 'triangle', 0.3, 0.8); }
+  longWarningBeep() { this.playTone(600, 'triangle', 1.0, 0.8); }
 
   foulBuzzer() {
     const count = 5;
     const interval = 240;
     for (let i = 0; i < count; i++) {
-      setTimeout(() => { this.playTone(600, 'sine', 0.12, 0.12); }, i * interval);
+      setTimeout(() => { this.playTone(600, 'sine', 0.12, 0.8); }, i * interval);
     }
   }
 }
@@ -601,10 +602,8 @@ const Header = ({ isMenuOpen, setIsMenuOpen, user, onLogout }: any) => {
         <nav className="hidden md:flex items-center gap-1">
           <button onClick={() => navigate('/')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all duration-200 flex items-center gap-2 ${isActive('/') ? 'bg-slate-800 text-emerald-400' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>Home</button>
           <button onClick={() => navigate('/drills')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all duration-200 flex items-center gap-2 ${isActive('/drills') ? 'bg-slate-800 text-emerald-400' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>Drills</button>
-          {/* UPDATED: Contact Us Link (Styled same as Home/Drills) */}
           <button onClick={() => navigate('/contact')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all duration-200 flex items-center gap-2 ${isActive('/contact') ? 'bg-slate-800 text-emerald-400' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>Contact Us</button>
-          <button onClick={() => navigate('/shot-clock')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all duration-200 flex items-center gap-2 border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-600/20`}>Shot Clock</button>
-          {user && <button onClick={() => navigate('/profile')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all duration-200 flex items-center gap-2 ${isActive('/profile') ? 'bg-slate-800 text-emerald-400' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><BarChart2 size={16} /> My Progress</button>}
+          <button onClick={() => navigate('/shot-clock')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all duration-200 flex items-center gap-2 border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-600/20`}>*NEW* Shot Clock</button>
           
           <div className="w-px h-6 bg-slate-700 mx-2" />
           {user ? (
@@ -615,6 +614,7 @@ const Header = ({ isMenuOpen, setIsMenuOpen, user, onLogout }: any) => {
               >
                 Hi, {user.username}
               </Link>
+              {user && <button onClick={() => navigate('/profile')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all duration-200 flex items-center gap-2 ${isActive('/profile') ? 'bg-slate-800 text-emerald-400' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><BarChart2 size={16} /> My Progress</button>}          
               <button onClick={onLogout} className="text-slate-300 hover:text-red-400 transition-colors p-2" title="Logout"><LogOut size={18} /></button>
             </div>
           ) : (
@@ -628,9 +628,8 @@ const Header = ({ isMenuOpen, setIsMenuOpen, user, onLogout }: any) => {
           <div className="flex flex-col p-2 space-y-1">
             <button onClick={() => { navigate('/'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg font-bold text-slate-300 hover:bg-slate-700">Home</button>
             <button onClick={() => { navigate('/drills'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg font-bold text-slate-300 hover:bg-slate-700">Drills</button>
-            {/* UPDATED: Mobile menu order */}
             <button onClick={() => { navigate('/contact'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg font-bold text-slate-300 hover:bg-slate-700">Contact Us</button>
-            <button onClick={() => { navigate('/shot-clock'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg font-bold text-emerald-400 hover:bg-slate-700">Shot Clock</button>
+            <button onClick={() => { navigate('/shot-clock'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg font-bold text-emerald-400 hover:bg-slate-700">*NEW* Shot Clock</button>
             {user ? (
                 <>
                 <button onClick={() => { navigate('/profile'); setIsMenuOpen(false); }} className="w-full text-left px-4 py-3 rounded-lg font-bold text-slate-300 hover:bg-slate-700">My Progress</button>
@@ -1623,7 +1622,7 @@ export default function App() {
   const handleLogScore = (newLog: DrillLog) => { setLogs([...logs, newLog]); };
 
   return (
-    <Router basename="/new-site">
+    <Router basename="/">
       <TitleUpdater />
       <Routes>
         {/* Standalone Shot Clock Page (No Header/Footer) */}

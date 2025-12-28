@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Dec 16, 2025 at 10:05 PM
+-- Generation Time: Dec 28, 2025 at 02:03 PM
 -- Server version: 11.8.3-MariaDB-log
 -- PHP Version: 7.2.34
 
@@ -74,6 +74,8 @@ CREATE TABLE `users` (
   `username` varchar(100) NOT NULL,
   `password` varchar(100) NOT NULL,
   `email` varchar(150) NOT NULL,
+  `is_admin` tinyint(4) NOT NULL,
+  `email_list` tinyint(4) NOT NULL,
   `verified` tinyint(4) NOT NULL DEFAULT 0,
   `vkey` varchar(100) NOT NULL,
   `signup_date` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
